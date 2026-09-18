@@ -30,11 +30,16 @@ interface CommandResult {
 }
 
 function execute(command: string, args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<CommandResult> {
+  // A .cmd target needs the shell on Windows, and the shell joins arguments
+  // with spaces and no quoting - a temp path with a space would split. Quote
+  // exactly the arguments that carry whitespace, only when the shell is used.
+  const shell = process.platform === 'win32' && command.toLowerCase().endsWith('.cmd')
+  const spawnArgs = shell ? args.map(argument => (/\s/.test(argument) ? '"' + argument + '"' : argument)) : [...args]
   return new Promise((resolveResult, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(command, spawnArgs, {
       cwd,
       env,
-      shell: process.platform === 'win32' && command.toLowerCase().endsWith('.cmd'),
+      shell,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
