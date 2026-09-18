@@ -85,7 +85,7 @@ describe('Loadout preset materialization', () => {
     expect(await readFile(edited, 'utf8')).toContain('mine')
   })
 
-  it('treats a pre-existing directory without a marker as user-owned and never repairs it', async () => {
+  it('treats a pre-existing directory without a marker as user-owned (it cannot be a sibling boot mid-copy) and never repairs it', async () => {
     const home = await freshHome()
     const target = join(home, '.agent-presets', PRESET_ID)
     mkdirSync(target, { recursive: true })
@@ -94,6 +94,29 @@ describe('Loadout preset materialization', () => {
     expect(report.action).toBe('present')
     expect(await readFile(join(target, 'agent.cordis.yml'), 'utf8')).toBe('[]\n')
     expect(existsSync(join(target, MARKER_FILE))).toBe(false)
+  })
+
+  it('the concurrent-boot race settles as claimed for the loser and leaves the winner complete', async () => {
+    const home = await freshHome()
+    let winner: ReturnType<typeof materializePreset> | undefined
+    const loser = materializePreset({
+      home,
+      sourceDir,
+      // The other boot completes while this one has staged but not yet claimed.
+      onStaged: () => { winner = materializePreset({ home, sourceDir }) },
+    })
+    expect(winner?.action).toBe('created')
+    expect(loser.action).toBe('claimed')
+    // The loser's staging directory is gone; only the winner's preset remains.
+    expect(readdirSync(join(home, '.agent-presets'))).toEqual([PRESET_ID])
+    expect(hashTree(loser.presetDir)).toBe(winner?.sourceHash)
+    expect(existsSync(join(loser.presetDir, MARKER_FILE))).toBe(true)
+    // A later boot sees a complete current-generation materialization, not a user-owned directory.
+    const later = materializePreset({ home, sourceDir })
+    expect(later.action).toBe('present')
+    expect(later.markerVersion).toBe(COMPOSITION_VERSION)
+    // The staging name can never be mistaken for a preset by DSH discovery.
+    expect('.' + PRESET_ID + '-staging-abc').not.toMatch(/^[a-z0-9][a-z0-9-]*$/)
   })
 
   it('leaves an untouched current-generation materialization as present', async () => {

@@ -23,6 +23,11 @@
 //                               generation we materialized and never edited:
 //                               safe in-place refresh: 'upgraded'.
 //
+// A crash before the claiming rename leaves only a dot-prefixed staging
+// directory beside the presets, invisible to discovery, and no target; the
+// next boot creates cleanly. Stale staging directories are not swept
+// automatically.
+//
 // Preset and skills are one generation unit on purpose: a user who edits a
 // skill keeps that edit forever, at the cost of freezing the whole preset at
 // that generation until they migrate by hand.
@@ -31,7 +36,7 @@
 // removed bundles, and automatic deletion would destroy user edits. The
 // supported deletion is DSH's own authoring delete (ctx.agentPresets.remove,
 // the same method the Web UI calls).
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -125,9 +130,10 @@ function marker(presetId, sourceHash, now) {
  * @param sourceDir - directory holding the preset files to copy.
  * @param presetId - preset id; defaults to `loadout`.
  * @param now - clock for the marker timestamp; tests pin it.
+ * @param onStaged - test seam: invoked after the tree is staged and before the claiming rename.
  * @returns the materialization report: action 'created' | 'upgraded' | 'present' | 'present-outdated' | 'claimed'.
  */
-export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now = () => new Date().toISOString() }) {
+export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now = () => new Date().toISOString(), onStaged }) {
   const presetRoot = join(home, '.agent-presets')
   const target = join(presetRoot, presetId)
   const markerPath = join(target, MARKER_FILE)
@@ -198,26 +204,33 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
   }
   const sourceHash = hashTree(sourceDir)
   mkdirSync(presetRoot, { recursive: true })
+  // Stage the complete tree - files AND marker - beside the target, then claim
+  // the id with one rename. The target therefore never exists without its
+  // marker: a boot that finds a marker-less directory has found a
+  // user-authored one, never a sibling boot mid-copy, and two boots racing
+  // for the id are settled by the rename - the loser's rename fails against
+  // the winner's completed directory and reports `claimed`. The dot-prefixed
+  // staging name fails DSH's preset-id pattern, so discovery never lists it.
+  const stage = mkdtempSync(join(presetRoot, '.' + presetId + '-staging-'))
   try {
-    // Non-recursive claim: the preset directory itself is the creation lock.
-    // A concurrent boot losing the race fails EEXIST and reports `claimed`.
-    mkdirSync(target)
+    copyTree(sourceDir, stage)
+    writeFileSync(join(stage, MARKER_FILE), marker(presetId, sourceHash, now))
   } catch (error) {
+    // Nothing reached the target; drop the partial stage so nothing occupies the root.
+    rmSync(stage, { recursive: true, force: true })
+    throw error
+  }
+  onStaged?.()
+  try {
+    renameSync(stage, target)
+  } catch (error) {
+    rmSync(stage, { recursive: true, force: true })
     if (existsSync(target)) {
       return { action: 'claimed', presetDir: target, markerPath, note: 'another boot materialized this preset first' }
     }
     throw error
   }
-  try {
-    copyTree(sourceDir, target)
-    writeFileSync(markerPath, marker(presetId, sourceHash, now))
-    return { action: 'created', presetDir: target, markerPath, sourceHash }
-  } catch (error) {
-    // A half-copied directory would occupy the id while discovery lists
-    // nothing mountable - roll the claim back so the next boot retries cleanly.
-    rmSync(target, { recursive: true, force: true })
-    throw error
-  }
+  return { action: 'created', presetDir: target, markerPath, sourceHash }
 }
 
 /** Cordis plugin entry: materialize once per boot, then stay silent. */

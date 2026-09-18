@@ -27,6 +27,8 @@ export interface MaterializeOptions {
   readonly sourceDir: string
   readonly presetId?: string
   readonly now?: () => string
+  /** Test seam: invoked after the tree is staged and before the claiming rename. */
+  readonly onStaged?: () => void
 }
 
 export declare function presetSourceDir(presetId?: string): string
