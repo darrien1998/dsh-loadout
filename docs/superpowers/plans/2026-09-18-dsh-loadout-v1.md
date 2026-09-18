@@ -19,7 +19,7 @@
 - Banned tokens (regex, applied to persona and skill text): `superpowers:`, `\bClaude\b`, `\bTodoWrite\b`, `\bAskUserQuestion\b`, `\bTask tool\b` (case-insensitive), `\bSkill tool\b`, `\bEnterPlanMode\b`, `\bExitPlanMode\b`, `your human partner` (case-insensitive), `docs/superpowers`.
 - DSH model-facing tool names the prose may use: `read`, `write`, `edit`, `glob`, `grep`, `bash`, `pwsh`, `todo_write`, `ask_user_question`, `skill`, `exit_plan_mode`. Plan mode is entered by the user (`/plan` command), never by the model; prose must not tell the model to "enter plan mode".
 - Materialization: `<dshHome>/.agent-presets/loadout/`, marker `.loadout-materialized.json`, `COMPOSITION_VERSION = 1`, preset and skills are ONE generation unit; a user edit anywhere in the directory freezes upgrades (`present-outdated`, never overwritten).
-- Commit messages in English, professional, imperative subject; every commit ends with the trailer `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.
+- Commit messages in English, professional, with a descriptive subject in the KeepGate style (`type(scope): what the change establishes`, a statement rather than a command); every commit ends with the trailer `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`.
 - Out of scope for v1: KeepGate runtime/governance/journal, design skills, planning/subagent skills, a session-start bootstrap plugin, npm publishing, and any per-model behaviour claim. v1 is done when `pnpm run typecheck`, `pnpm run lint`, `pnpm test`, and `pnpm run test:dsh-smoke` all pass.
 
 ---
@@ -113,6 +113,11 @@ packages:
 # rc.5 DSH packages are host-provided peers pinned by the harness checkout.
 # Never let pnpm replace that pin during installation.
 autoInstallPeers: false
+
+# vitest depends on esbuild, whose postinstall build pnpm 10+ refuses to run
+# unless allowed here; without this `pnpm test` fails with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  esbuild: true
 ```
 
 - [ ] **Step 3: Write `tsconfig.json`**
@@ -908,7 +913,9 @@ describe('Loadout bundled skills', () => {
       })
 
       it('references only bundled skills', () => {
-        const refs = [...skill.body.matchAll(/\b([a-z0-9]+(?:-[a-z0-9]+)+) skill\b/g)].map(match => match[1]!)
+        // Every cross-reference is phrased "the <name> skill"; the article keeps
+        // phrases like "every skill" out, and the name may be a single word.
+        const refs = [...skill.body.matchAll(/\bthe ([a-z0-9]+(?:-[a-z0-9]+)*) skill\b/g)].map(match => match[1]!)
         for (const ref of refs) expect(BUNDLED_SKILLS, ref).toContain(ref)
       })
     })
@@ -1302,7 +1309,7 @@ describe('Loadout preset materialization', () => {
     expect(await readFile(edited, 'utf8')).toContain('mine')
   })
 
-  it('treats a pre-existing directory without a marker as user-owned and never repairs it', async () => {
+  it('treats a pre-existing directory without a marker as user-owned (it cannot be a sibling boot mid-copy) and never repairs it', async () => {
     const home = await freshHome()
     const target = join(home, '.agent-presets', PRESET_ID)
     mkdirSync(target, { recursive: true })
@@ -1311,6 +1318,29 @@ describe('Loadout preset materialization', () => {
     expect(report.action).toBe('present')
     expect(await readFile(join(target, 'agent.cordis.yml'), 'utf8')).toBe('[]\n')
     expect(existsSync(join(target, MARKER_FILE))).toBe(false)
+  })
+
+  it('the concurrent-boot race settles as claimed for the loser and leaves the winner complete', async () => {
+    const home = await freshHome()
+    let winner: ReturnType<typeof materializePreset> | undefined
+    const loser = materializePreset({
+      home,
+      sourceDir,
+      // The other boot completes while this one has staged but not yet claimed.
+      onStaged: () => { winner = materializePreset({ home, sourceDir }) },
+    })
+    expect(winner?.action).toBe('created')
+    expect(loser.action).toBe('claimed')
+    // The loser's staging directory is gone; only the winner's preset remains.
+    expect(readdirSync(join(home, '.agent-presets'))).toEqual([PRESET_ID])
+    expect(hashTree(loser.presetDir)).toBe(winner?.sourceHash)
+    expect(existsSync(join(loser.presetDir, MARKER_FILE))).toBe(true)
+    // A later boot sees a complete current-generation materialization, not a user-owned directory.
+    const later = materializePreset({ home, sourceDir })
+    expect(later.action).toBe('present')
+    expect(later.markerVersion).toBe(COMPOSITION_VERSION)
+    // The staging name can never be mistaken for a preset by DSH discovery.
+    expect('.' + PRESET_ID + '-staging-abc').not.toMatch(/^[a-z0-9][a-z0-9-]*$/)
   })
 
   it('leaves an untouched current-generation materialization as present', async () => {
@@ -1387,6 +1417,11 @@ Expected: FAIL — cannot resolve `../../packages/preset/materialize.mjs`.
 //                               generation we materialized and never edited:
 //                               safe in-place refresh: 'upgraded'.
 //
+// A crash before the claiming rename leaves only a dot-prefixed staging
+// directory beside the presets, invisible to discovery, and no target; the
+// next boot creates cleanly. Stale staging directories are not swept
+// automatically.
+//
 // Preset and skills are one generation unit on purpose: a user who edits a
 // skill keeps that edit forever, at the cost of freezing the whole preset at
 // that generation until they migrate by hand.
@@ -1395,7 +1430,7 @@ Expected: FAIL — cannot resolve `../../packages/preset/materialize.mjs`.
 // removed bundles, and automatic deletion would destroy user edits. The
 // supported deletion is DSH's own authoring delete (ctx.agentPresets.remove,
 // the same method the Web UI calls).
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -1489,9 +1524,10 @@ function marker(presetId, sourceHash, now) {
  * @param sourceDir - directory holding the preset files to copy.
  * @param presetId - preset id; defaults to `loadout`.
  * @param now - clock for the marker timestamp; tests pin it.
+ * @param onStaged - test seam: invoked after the tree is staged and before the claiming rename.
  * @returns the materialization report: action 'created' | 'upgraded' | 'present' | 'present-outdated' | 'claimed'.
  */
-export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now = () => new Date().toISOString() }) {
+export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now = () => new Date().toISOString(), onStaged }) {
   const presetRoot = join(home, '.agent-presets')
   const target = join(presetRoot, presetId)
   const markerPath = join(target, MARKER_FILE)
@@ -1562,26 +1598,33 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
   }
   const sourceHash = hashTree(sourceDir)
   mkdirSync(presetRoot, { recursive: true })
+  // Stage the complete tree - files AND marker - beside the target, then claim
+  // the id with one rename. The target therefore never exists without its
+  // marker: a boot that finds a marker-less directory has found a
+  // user-authored one, never a sibling boot mid-copy, and two boots racing
+  // for the id are settled by the rename - the loser's rename fails against
+  // the winner's completed directory and reports `claimed`. The dot-prefixed
+  // staging name fails DSH's preset-id pattern, so discovery never lists it.
+  const stage = mkdtempSync(join(presetRoot, '.' + presetId + '-staging-'))
   try {
-    // Non-recursive claim: the preset directory itself is the creation lock.
-    // A concurrent boot losing the race fails EEXIST and reports `claimed`.
-    mkdirSync(target)
+    copyTree(sourceDir, stage)
+    writeFileSync(join(stage, MARKER_FILE), marker(presetId, sourceHash, now))
   } catch (error) {
+    // Nothing reached the target; drop the partial stage so nothing occupies the root.
+    rmSync(stage, { recursive: true, force: true })
+    throw error
+  }
+  onStaged?.()
+  try {
+    renameSync(stage, target)
+  } catch (error) {
+    rmSync(stage, { recursive: true, force: true })
     if (existsSync(target)) {
       return { action: 'claimed', presetDir: target, markerPath, note: 'another boot materialized this preset first' }
     }
     throw error
   }
-  try {
-    copyTree(sourceDir, target)
-    writeFileSync(markerPath, marker(presetId, sourceHash, now))
-    return { action: 'created', presetDir: target, markerPath, sourceHash }
-  } catch (error) {
-    // A half-copied directory would occupy the id while discovery lists
-    // nothing mountable - roll the claim back so the next boot retries cleanly.
-    rmSync(target, { recursive: true, force: true })
-    throw error
-  }
+  return { action: 'created', presetDir: target, markerPath, sourceHash }
 }
 
 /** Cordis plugin entry: materialize once per boot, then stay silent. */
@@ -1628,6 +1671,8 @@ export interface MaterializeOptions {
   readonly sourceDir: string
   readonly presetId?: string
   readonly now?: () => string
+  /** Test seam: invoked after the tree is staged and before the claiming rename. */
+  readonly onStaged?: () => void
 }
 
 export declare function presetSourceDir(presetId?: string): string
@@ -1639,7 +1684,7 @@ export declare function apply(ctx?: unknown): void
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: `pnpm test -- tests/preset/materialize`
-Expected: PASS — 8 tests.
+Expected: PASS — 9 tests.
 
 Run: `pnpm run typecheck` and `pnpm run lint`
 Expected: both exit 0.
@@ -1828,11 +1873,16 @@ interface CommandResult {
 }
 
 function execute(command: string, args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<CommandResult> {
+  // A .cmd target needs the shell on Windows, and the shell joins arguments
+  // with spaces and no quoting - a temp path with a space would split. Quote
+  // exactly the arguments that carry whitespace, only when the shell is used.
+  const shell = process.platform === 'win32' && command.toLowerCase().endsWith('.cmd')
+  const spawnArgs = shell ? args.map(argument => (/\s/.test(argument) ? '"' + argument + '"' : argument)) : [...args]
   return new Promise((resolveResult, reject) => {
-    const child = spawn(command, args, {
+    const child = spawn(command, spawnArgs, {
       cwd,
       env,
-      shell: process.platform === 'win32' && command.toLowerCase().endsWith('.cmd'),
+      shell,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
@@ -2261,6 +2311,11 @@ pnpm run test:dsh-smoke
 `test:dsh-smoke` installs the bundle into a temporary DSH home on the real
 web profile, boots it, reads the bundled skills through the skill registry in
 the preset's scope, and removes everything afterward.
+
+Known limitation (upstream): on Windows, `dsh plugin add` in rc.5 spawns pnpm
+through the shell without quoting, so a temp directory whose path contains a
+space breaks the install step inside DSH itself. Run the smoke with a
+space-free `%TEMP%`. The smoke's own pnpm calls quote their arguments.
 
 ## Not in v1
 
