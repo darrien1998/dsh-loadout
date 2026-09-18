@@ -4,3 +4,8 @@ packages:
 # rc.5 DSH packages are host-provided peers pinned by the harness checkout.
 # Never let pnpm replace that pin during installation.
 autoInstallPeers: false
+
+# vitest depends on esbuild, whose postinstall build pnpm 10+ refuses to run
+# unless allowed here; without this `pnpm test` fails with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  esbuild: true
