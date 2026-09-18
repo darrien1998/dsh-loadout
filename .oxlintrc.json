@@ -1,0 +1,9 @@
+{
+  "env": {
+    "builtin": true,
+    "node": true
+  },
+  "rules": {
+    "no-unused-vars": "error"
+  }
+}

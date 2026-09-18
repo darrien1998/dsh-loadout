@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
+    "paths": {
+      "@deepseek-ai/dsh-agent-presets": ["../deepseek-harness/packages/preset/agent-presets/lib/types/index.d.ts"],
+      "@deepseek-ai/dsh-home-paths": ["../deepseek-harness/packages/util/home-paths/lib/types/index.d.ts"],
+      "@deepseek-ai/cordis-plugin-loader": ["../deepseek-harness/vendor/loader/lib/types/index.d.ts"],
+      "@deepseek-ai/cordis-plugin-include": ["../deepseek-harness/vendor/include/lib/types/index.d.ts"]
+    }
+  },
+  "include": ["tests/**/*.ts", "packages/*/*.d.mts"]
+}
