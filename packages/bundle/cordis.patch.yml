@@ -1,0 +1,7 @@
+# Loadout composes ONE host-plane row: the boot-time materialization of the
+# `loadout` agent preset (composition + skills) into the harness-home preset
+# root. Everything the model sees is inside that preset; the host composition
+# is otherwise untouched.
+- insert:
+    - id: loadout-preset
+      name: '@loadout/dsh-preset/materialize'

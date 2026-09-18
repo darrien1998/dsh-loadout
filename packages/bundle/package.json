@@ -1,0 +1,22 @@
+{
+  "name": "@loadout/dsh",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness bundle for Loadout: installs the loadout agent preset and its bundled engineering skills",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@loadout/dsh-preset": "workspace:^"
+  }
+}
