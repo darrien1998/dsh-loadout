@@ -67,7 +67,9 @@ describe('Loadout bundled skills', () => {
       })
 
       it('references only bundled skills', () => {
-        const refs = [...skill.body.matchAll(/\b([a-z0-9]+(?:-[a-z0-9]+)+) skill\b/g)].map(match => match[1]!)
+        // Every cross-reference is phrased "the <name> skill"; the article keeps
+        // phrases like "every skill" out, and the name may be a single word.
+        const refs = [...skill.body.matchAll(/\bthe ([a-z0-9]+(?:-[a-z0-9]+)*) skill\b/g)].map(match => match[1]!)
         for (const ref of refs) expect(BUNDLED_SKILLS, ref).toContain(ref)
       })
     })
