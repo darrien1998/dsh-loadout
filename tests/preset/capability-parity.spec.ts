@@ -43,6 +43,15 @@ describe('Loadout capability parity with the pinned Standard composition', () =>
     expect(report.targetIds).not.toContain('tool-presentation')
   })
 
+  it('the persona is the only Standard row that differs, with the template variables intact', async () => {
+    const report = await analyzeParity(standardPath, loadoutPath)
+    expect(report.rows.filter(row => row.classification === 'INTENTIONALLY DIFFERENT').map(row => row.id)).toEqual(['persona'])
+    const [persona] = (await loadComposition(loadoutPath)).filter(row => row.id === 'persona')
+    const text = JSON.stringify(persona?.config)
+    expect(text).toContain('{{model}}')
+    expect(text).toContain('{{cwd}}')
+  })
+
   it('the loadout-skills row is an isolated second skill-filesystem provider over the materialized skills root', async () => {
     const row = (await loadComposition(loadoutPath)).find(candidate => candidate.id === 'loadout-skills')
     expect(row?.name).toBe('@deepseek-ai/dsh-skill-filesystem')
