@@ -1,0 +1,23 @@
+{
+  "name": "@loadout/dsh-preset",
+  "version": "0.1.0",
+  "description": "The Loadout agent preset for DeepSeek Harness (DSH Standard + task-first persona + bundled engineering skills) and its boot-time materialization row",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./materialize": "./materialize.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "materialize.mjs",
+    "preset"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/dsh-home-paths": "0.1.0-rc.5"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-home-paths": {
+      "optional": true
+    }
+  }
+}
