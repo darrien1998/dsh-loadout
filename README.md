@@ -42,6 +42,7 @@ depends on the preset by workspace protocol; the profile's package manager
 cannot resolve that, so point a copy of the bundle at the preset tarball:
 
 ```powershell
+Remove-Item dist -Recurse -Force -ErrorAction SilentlyContinue
 pnpm --filter @loadout/dsh-preset pack --pack-destination dist
 $preset = (Get-ChildItem dist\loadout-dsh-preset-*.tgz).FullName
 Copy-Item -Recurse packages\bundle dist\bundle
