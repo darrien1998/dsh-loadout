@@ -76,7 +76,7 @@ async function prepareVerifyDriver(profileDirectory: string, dshHome: string): P
     "  const standard = listed.find(p => p.id === 'standard')",
     "  if (standard === undefined || standard.trust !== 'system') throw new Error('native Standard preset missing or mistrusted')",
     '  // Cold-mount the FULL loadout composition against the real web host plane:',
-    '  // rejects unless every row activates (the loadout-skills row included).',
+    '  // rejects unless every row activates.',
     "  const scope = await ctx.agentPresets.standingKeyFor('loadout')",
     '  const cwd = process.cwd()',
     '  const snapshot = await ctx.skills.snapshot({ scope, cwd })',
@@ -149,9 +149,8 @@ await mkdir(packDirectory, { recursive: true })
 const env = { ...process.env, DSH_HOME: dshHome, DSH_AGENTS_HOME: join(scratch, 'agents-home'), DSH_TELEMETRY_DISABLED: '1' }
 
 try {
-  // Path-scoped, not name-scoped: the workspace root is also named
-  // dsh-loadout (a private placeholder), so a name filter matches both and
-  // packs whichever runs last - a path filter is unambiguous.
+  // Filter by path, not name: a directory filter can only ever match this
+  // package, whatever the workspace root is called.
   expectSuccess('package pack', await execute(pnpm, ['--filter', './packages/dsh-loadout', 'pack', '--pack-destination', packDirectory], projectRoot, env))
   const packageTarball = await tarball(packDirectory, 'dsh-loadout-0.1.0')
 

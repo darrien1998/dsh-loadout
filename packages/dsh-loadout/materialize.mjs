@@ -36,7 +36,7 @@
 // skill keeps that edit forever, at the cost of freezing the whole preset at
 // that generation until they migrate by hand.
 //
-// Removal is NOT this plugin's job: rc.5 provides no uninstall hook for
+// Removal is NOT this plugin's job: DSH provides no uninstall hook for
 // removed bundles, and automatic deletion would destroy user edits. The
 // supported deletion is DSH's own authoring delete (ctx.agentPresets.remove,
 // the same method the Web UI calls). And a materialization failure of any
@@ -63,9 +63,12 @@ const SOURCE_PACKAGE = 'dsh-loadout'
 /**
  * Composition generation of the shipped preset tree. Bump on every shipped
  * change (composition OR skills) that existing untouched materializations
- * must adopt; markers without a version field read as 1.
+ * must adopt; markers without a version field read as 1. Generation 2 is the
+ * DSH 0.1.5 composition (prefix/suffix persona, skills through
+ * customSkillDirs); generation 1 was the rc.5 composition and never reached
+ * npm.
  */
-export const COMPOSITION_VERSION = 1
+export const COMPOSITION_VERSION = 2
 
 const here = dirname(fileURLToPath(import.meta.url))
 

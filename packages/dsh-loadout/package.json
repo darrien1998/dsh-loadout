@@ -6,7 +6,8 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darrien1998/dsh-loadout.git"
+    "url": "git+https://github.com/darrien1998/dsh-loadout.git",
+    "directory": "packages/dsh-loadout"
   },
   "homepage": "https://github.com/darrien1998/dsh-loadout#readme",
   "keywords": [
@@ -24,7 +25,8 @@
     "cordis.patch.yml",
     "materialize.mjs",
     "preset",
-    "LICENSE"
+    "LICENSE",
+    "README.md"
   ],
   "dsh": {
     "bundle": {

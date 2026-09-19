@@ -1,7 +1,7 @@
 packages:
   - packages/*
 
-# rc.5 DSH packages are host-provided peers pinned by the harness checkout.
+# DSH packages are host-provided peers pinned by the harness checkout.
 # Never let pnpm replace that pin during installation.
 autoInstallPeers: false
 

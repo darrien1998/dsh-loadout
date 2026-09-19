@@ -19,14 +19,15 @@ DSH 0.1.5-rc.2.
 differences, machine-checked by `tests/preset/capability-parity.spec.ts`, are
 the persona text and the `skill-filesystem` row's preset-local skills root
 (the same wiring DSH's `cordis` preset uses for its own skills). No row is
-added, no row is reordered, presentation stays native.
+added and no row is reordered; the `present` row is Standard's own.
 
 **Persona** — under 1,200 characters, no identity claim, no competence
 adjectives: persona prompting does not improve objective-task accuracy and can
 degrade reasoning, so the standing text carries instruction only. The prefix
-(read first) states the environment — `Model: {{model}}. Working directory:
-{{cwd}}.` — and routes to the skills; the suffix (rendered after DSH's own tool
-guidance) carries seven standing rules.
+(the first section after DSH's own identity line) states the environment —
+`Model: {{model}}. Working directory: {{cwd}}.` — and routes to the skills;
+the suffix (rendered after DSH's own tool guidance) carries seven standing
+rules.
 
 **Skills** — loaded on demand through the `skill` tool; the model sees only
 name + description until it loads one:
@@ -51,7 +52,8 @@ never overwritten by a later version (the boot log reports `present-outdated`);
 an untouched one is upgraded by swapping in the new generation whole, so a
 crash mid-upgrade cannot leave a half-updated preset. The preset lands in the
 profile-independent `<dshHome>/.agent-presets`, so installing on `web` makes
-it available to every profile.
+it available to every profile. Edits to a materialized skill are picked up
+live — the skill root is watched — without restarting DSH.
 
 ## Remove
 
@@ -93,5 +95,6 @@ dsh plugin --profile web add (Get-ChildItem dist\dsh-loadout-*.tgz).FullName
 ```
 
 Known limitation (upstream): on Windows, `dsh plugin add` spawns pnpm through
-the shell without quoting, so a `DSH_HOME` or temp path containing a space
-breaks the install step inside DSH itself. Use paths without spaces.
+the shell without quoting its arguments, so a tarball or checkout path that
+contains a space breaks the install step inside DSH itself. Installing by
+package name is unaffected; keep local tarball paths free of spaces.

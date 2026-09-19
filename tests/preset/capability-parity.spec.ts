@@ -51,7 +51,6 @@ describe('Loadout capability parity with the pinned Standard composition', () =>
     const report = await analyzeParity(standardPath, loadoutPath)
     expect(report.rows.filter(row => row.classification === 'ADDED')).toEqual([])
     expect(report.targetTopLevelIds).toEqual(report.standardTopLevelIds)
-    expect(report.targetIds).not.toContain('tool-presentation')
   })
 
   it('differs from Standard in exactly two rows: the persona text and the skill root', async () => {

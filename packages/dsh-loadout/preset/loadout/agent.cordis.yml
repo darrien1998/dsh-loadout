@@ -11,7 +11,8 @@
 # rows here without updating that contract.
 #
 # Everything from the first row onward is Standard verbatim (Standard's own
-# in-body comments preserved), except the persona text and the skills root.
+# in-body comments preserved), except the persona text, the skills root, and
+# the comment above it.
 #
 # This file is an AGENT-PLANE composition. The roster mounts it ONCE under a
 # standing scope; every session naming it joins by scope parentage, so the

@@ -48,7 +48,7 @@ describe('Loadout preset materialization', () => {
   it('ships its own preset source directory with the skills inside it', () => {
     expect(PRESET_ID).toBe('loadout')
     expect(MARKER_FILE).toBe('.loadout-materialized.json')
-    expect(COMPOSITION_VERSION).toBe(1)
+    expect(COMPOSITION_VERSION).toBe(2)
     expect(existsSync(join(presetSourceDir(), 'agent.cordis.yml'))).toBe(true)
     expect(existsSync(join(presetSourceDir(), 'skills', 'grill-me', 'SKILL.md'))).toBe(true)
   })
