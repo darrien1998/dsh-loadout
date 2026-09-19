@@ -35,7 +35,7 @@ export const ROLE_PLAY_TOKENS: readonly RegExp[] = Object.freeze([
   /\bworld-class\b/i,
 ])
 
-/** Standing persona text is paid on every request; keep it small. Nine rules fit in 1,800. */
+/** Standing persona text is paid on every request; keep it small. Seven rules fit in 1,800. */
 export const PERSONA_MAX_CHARACTERS = 1_800
 
 /** DSH shows the model only name + description; the description carries the trigger. */
