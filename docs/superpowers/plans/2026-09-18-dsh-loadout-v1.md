@@ -2353,3 +2353,24 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
 **Placeholder scan.** Every file has its full content; every run step has an expected outcome; Task 7b is a complete fallback, not a "handle it later".
 
 **Type consistency.** `loadComposition` / `analyzeParity` (Task 2) are used unchanged in Tasks 3 and 7b; `BUNDLED_SKILLS` / `BANNED_TOKENS` / budgets (Task 3) are the names Task 4 imports; `PRESET_ID`, `MARKER_FILE`, `COMPOSITION_VERSION`, `materializePreset`, `presetSourceDir` (Task 5) match `materialize.d.mts` and the spec; the bundle row id `loadout-preset` (Task 6) is what the smoke greps (Task 7); the provider name `loadout` and source `bundled` (Task 2 row config) are what the smoke driver asserts.
+
+---
+
+## Post-v1 follow-ups (from the final whole-branch review, 2026-09-18/20)
+
+Not defects in what shipped; recorded so the next change starts from them rather than rediscovering them.
+
+**Before the first `COMPOSITION_VERSION` bump**
+- Pin a per-generation hash of the shipped preset tree in a test fixture so a forgotten bump fails loudly instead of silently shipping nothing to untouched installs.
+- `materialize.mjs` upgrade failure paths: catch the removal of the retired `-previous-` directory (a locked handle there makes `apply()` log a failure although the upgrade succeeded); in the catch, restore the previous generation BEFORE removing the stage.
+
+**Adding a sixth skill touches** the directory, `tests/contract.ts` `BUNDLED_SKILLS`, the `SKILLS` array in `tests/integration/dsh-smoke.ts` (import it from `contract.ts` instead), the persona routing text, `preset.yml`'s description (not machine-checked), the README table, and the version bump.
+
+**Smaller**
+- `materialize.mjs`: a corrupt marker reads as "no marker → user-owned"; report an unreadable marker instead. The hash comparator orders by UTF-16 code unit (deterministic; the comment says "codepoint").
+- `tests/integration/dsh-smoke.ts` `execute()` has no timeout; a driver that never reaches `exit(0)` hangs the run. Scratch `mkdtemp` happens before the `try/finally`.
+- `agent.cordis.yml` header comment still describes the parity guard as "identical name/config/disabled"; the guard now compares whole rows and top-level order.
+- README: `bundledSkillDir` hardcodes `loadout` (a Web-UI copy of the preset shares the original's `skills/`); bundled rank 600 is shadowed by a same-named user or project skill while the persona still routes by name; the preset lands in the profile-independent `<dshHome>/.agent-presets`, so installing on `web` exposes it to every profile.
+- rc.6 port checklist: bump the `0.1.0-rc.5` peer in `packages/preset/package.json`, re-copy Standard, re-confirm `dshHomePath` provision and the `bundledSkillDir` / `includeDefaultRoots` semantics in `skill-filesystem`.
+
+**Upstream (DSH rc.5)**: `dsh plugin add` spawns pnpm through the shell without quoting, so a `DSH_HOME`/temp path containing a space breaks installation inside DSH itself.
