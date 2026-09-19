@@ -41,7 +41,7 @@ describe('Loadout persona', () => {
     expect(prefix).toContain('`skill` tool')
     expect(suffix.split('\n')[0]).toBe('Standing rules:')
     expect(suffix).toContain('todo_write')
-    expect(suffix.split('\n').filter(line => line.startsWith('- ')).length).toBe(9)
+    expect(suffix.split('\n').filter(line => line.startsWith('- ')).length).toBe(7)
     for (const rule of ['act:', 'assessment, not a fix', 'surgically', 'Validate at boundaries', 'skipped steps as skipped', 'selecting detail', 'end a turn on a promise']) {
       expect(suffix, rule).toContain(rule)
     }
