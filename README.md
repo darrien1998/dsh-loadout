@@ -26,7 +26,7 @@ adjectives: persona prompting does not improve objective-task accuracy and can
 degrade reasoning, so the standing text carries instruction only. The prefix
 (the first section after DSH's own identity line) states the environment —
 `Model: {{model}}. Working directory: {{cwd}}.` — and routes to the skills;
-the suffix (rendered after DSH's own tool guidance) carries seven standing
+the suffix (rendered after DSH's own tool guidance) carries nine standing
 rules.
 
 **Skills** — loaded on demand through the `skill` tool; the model sees only
