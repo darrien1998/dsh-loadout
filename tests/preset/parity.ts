@@ -1,8 +1,8 @@
 // Capability-parity analyzer.
 //
-// rc.5 has no preset-level patch semantics, so the loadout composition is a
+// DSH has no preset-level patch semantics, so the loadout composition is a
 // deliberate full copy of the shipped Standard composition (the same cost
-// upstream accepts for code and cordis). This module makes the copy
+// upstream accepts for ptc and cordis). This module makes the copy
 // auditable instead of a hidden fork: it parses both files with the loader's
 // own YAML dialect (entryListSchema, the one carrying !!js) and classifies
 // every row PRESENT / INTENTIONALLY DIFFERENT / ADDED / MISSING. A row is

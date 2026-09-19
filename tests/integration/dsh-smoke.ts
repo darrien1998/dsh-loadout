@@ -8,7 +8,8 @@
 // post-remove driver that performs the supported preset deletion.
 //
 // Requires a BUILT checkout: DSH_SOURCE_DIR (default: the sibling
-// ../deepseek-harness). Uses a temporary DSH_HOME and removes it afterward.
+// ../deepseek-harness-0.1.5). Uses a temporary DSH_HOME and removes it afterward.
+// Boots with --no-open so no browser tab opens.
 import { spawn } from 'node:child_process'
 import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -19,7 +20,7 @@ import { strict as assert } from 'node:assert'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(here, '../..')
-const dshRoot = process.env.DSH_SOURCE_DIR ?? resolve(projectRoot, '../deepseek-harness')
+const dshRoot = process.env.DSH_SOURCE_DIR ?? resolve(projectRoot, '../deepseek-harness-0.1.5')
 const pnpm = process.env.LOADOUT_PNPM ?? (process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm')
 const profile = 'web'
 const SKILLS = ['brainstorming', 'grill-me', 'systematic-debugging', 'test-driven-development', 'verification-before-completion']
@@ -62,7 +63,7 @@ async function tarball(packDirectory: string, prefix: string): Promise<string> {
 }
 
 /** Boot-time verification driver for the REAL web profile. */
-async function prepareVerifyDriver(profileDirectory: string): Promise<void> {
+async function prepareVerifyDriver(profileDirectory: string, dshHome: string): Promise<void> {
   await writeFile(join(profileDirectory, 'loadout-verify.mjs'), [
     "export const name = 'loadout-verify'",
     "export const inject = ['agentPresets', 'skills']",
@@ -86,12 +87,15 @@ async function prepareVerifyDriver(profileDirectory: string): Promise<void> {
     '  }',
     "  const loaded = await ctx.skills.get('systematic-debugging', { scope, cwd })",
     "  if (loaded === undefined) throw new Error('systematic-debugging did not load')",
-    "  if (loaded.provider !== 'loadout') throw new Error('skill served by provider ' + loaded.provider + ', expected loadout')",
-    "  if (loaded.source !== 'bundled') throw new Error('skill source ' + loaded.source + ', expected bundled')",
+    "  if (loaded.provider !== 'filesystem') throw new Error('skill served by provider ' + loaded.provider + ', expected filesystem')",
+    "  if (loaded.source !== 'custom') throw new Error('skill source ' + loaded.source + ', expected custom (the preset-local root)')",
+    "  const presetDir = " + JSON.stringify(join(dshHome, '.agent-presets', 'loadout')) + "",
+    "  if (typeof loaded.path !== 'string' || !loaded.path.startsWith(presetDir)) throw new Error('skill loaded from ' + loaded.path + ', expected under ' + presetDir)",
     "  if (!loaded.content.includes('Phase 1')) throw new Error('loaded body is not the shipped skill')",
-    '  // Isolation: the global layer (no scope) must not be served by the loadout provider.',
-    '  const leaked = (await ctx.skills.list({ cwd })).filter(s => s.provider === \'loadout\').map(s => s.name)',
-    "  if (leaked.length > 0) throw new Error('bundled skills leaked into the global layer: ' + leaked.join(','))",
+    '  // Isolation: with hermetic homes, the global layer (no scope) must not resolve any bundled skill at all.',
+    '  for (const bundled of ' + JSON.stringify(SKILLS) + ') {',
+    "    if (await ctx.skills.get(bundled, { cwd }) !== undefined) throw new Error('bundled skill reachable from the global layer: ' + bundled)",
+    '  }',
     "  process.stdout.write('[loadout-smoke] roster ok, composition mounted, ' + names.length + ' skills in scope, isolation ok\\n')",
     "  const exit = ctx.get('appExit')",
     "  if (typeof exit !== 'function') throw new Error('launcher did not provide appExit')",
@@ -145,7 +149,10 @@ await mkdir(packDirectory, { recursive: true })
 const env = { ...process.env, DSH_HOME: dshHome, DSH_AGENTS_HOME: join(scratch, 'agents-home'), DSH_TELEMETRY_DISABLED: '1' }
 
 try {
-  expectSuccess('package pack', await execute(pnpm, ['--filter', 'dsh-loadout', 'pack', '--pack-destination', packDirectory], projectRoot, env))
+  // Path-scoped, not name-scoped: the workspace root is also named
+  // dsh-loadout (a private placeholder), so a name filter matches both and
+  // packs whichever runs last - a path filter is unambiguous.
+  expectSuccess('package pack', await execute(pnpm, ['--filter', './packages/dsh-loadout', 'pack', '--pack-destination', packDirectory], projectRoot, env))
   const packageTarball = await tarball(packDirectory, 'dsh-loadout-0.1.0')
 
   expectSuccess('dsh web plugin add', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'add', packageTarball], dshRoot, env))
@@ -153,12 +160,12 @@ try {
   const dump = await execute(process.execPath, [dshBin, '--profile', profile, '--dump-config'], dshRoot, env)
   expectSuccess('dsh web dump-config after add', dump)
   assert.match(dump.output, /id: loadout-preset/)
-  assert.match(dump.output, /name: 'dsh-loadout\/materialize'/)
+  assert.match(dump.output, /name: dsh-loadout\/materialize/)
   assert.match(dump.output, /id: agent-presets/)
 
   const profileDirectory = join(dshHome, 'profiles', profile)
-  await prepareVerifyDriver(profileDirectory)
-  const boot = await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0'], dshRoot, env)
+  await prepareVerifyDriver(profileDirectory, dshHome)
+  const boot = await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], dshRoot, env)
   expectSuccess('dsh web profile boot with Loadout', boot)
   assert.match(boot.output, /\[loadout-smoke\] roster ok/)
 
@@ -170,7 +177,7 @@ try {
 
   expectSuccess('dsh web plugin remove', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'remove', 'dsh-loadout'], dshRoot, env))
   await preparePostRemoveDriver(profileDirectory)
-  expectSuccess('dsh web profile boot after removal', await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0'], dshRoot, env))
+  expectSuccess('dsh web profile boot after removal', await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], dshRoot, env))
   assert.equal(existsSync(presetDir), false, 'the supported authoring delete removed the preset directory')
 
   await writeFile(join(profileDirectory, 'cordis.patch.yml'), '# Your patch layer for this dsh profile, applied after every bundle layer:\n[]\n')
@@ -179,7 +186,7 @@ try {
   assert.doesNotMatch(afterRemove.output, /loadout/)
   assert.match(afterRemove.output, /id: agent-presets/)
 
-  process.stdout.write('Loadout DSH smoke passed: one bundle install on the real web profile, roster + cold full-preset mount, five bundled skills in the preset scope with no global leak, clean two-stage removal.\n')
+  process.stdout.write('Loadout DSH smoke passed: one bundle install on the real web profile, roster + cold full-preset mount, five bundled skills served from the preset\'s own root and unreachable from the global layer, clean two-stage removal.\n')
 } finally {
   await rm(scratch, { force: true, recursive: true })
 }

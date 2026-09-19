@@ -5,8 +5,8 @@
 // metadata, and the bundled skills - into DSH's public writable preset root
 // (<dshHome>/.agent-presets). Discovery re-reads that root on every list(),
 // so the preset is visible to the roster (and the Web picker) in the same
-// boot, and the `loadout-skills` row inside the composition reads the
-// `skills/` directory this copy created.
+// boot, and the composition's `skill-filesystem` row reads the `skills/`
+// directory beside it through `baseUrl`.
 //
 // Versioned upgrade. An existing directory is NEVER rewritten blindly. The
 // provenance marker records which shipped generation was materialized
