@@ -72,15 +72,6 @@ dsh plugin --profile web remove @loadout/dsh @loadout/dsh-preset
 
 then delete the preset from the Web UI, or through `ctx.agentPresets.remove('loadout')`.
 
-## Observed models
-
-Whether a model loads a skill unprompted is a per-model, repeatable
-observation, not a property of this package. Record what you saw:
-
-| model | reasoning | loads a skill unprompted on a bug task? | notes |
-|---|---|---|---|
-| _(none yet)_ | | | |
-
 ## Development
 
 Requires the pinned DSH checkout, built, as the sibling directory
@@ -104,8 +95,3 @@ Known limitation (upstream): on Windows, `dsh plugin add` in rc.5 spawns pnpm
 through the shell without quoting, so a temp directory whose path contains a
 space breaks the install step inside DSH itself. Run the smoke with a
 space-free `%TEMP%`. The smoke's own pnpm calls quote their arguments.
-
-## Not in v1
-
-KeepGate runtime and governance, design skills, planning and subagent skills,
-a session-start bootstrap plugin, npm publishing.
