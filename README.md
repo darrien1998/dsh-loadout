@@ -58,7 +58,8 @@ and it appears in the preset picker as **Loadout**.
 
 The materialized directory is yours: edit it freely. An edited directory is
 never overwritten by a later version (the boot log reports `present-outdated`);
-an untouched one is upgraded in place.
+an untouched one is upgraded by swapping in the new generation whole (never
+file by file), so a crash mid-upgrade cannot leave a half-updated preset.
 
 ## Remove
 
