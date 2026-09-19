@@ -13,7 +13,7 @@ import { analyzeParity, loadComposition } from './parity.ts'
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
 const standardPath = resolve(repoRoot, '../deepseek-harness/apps/cli/config/agent-presets/standard/agent.cordis.yml')
-const loadoutPath = resolve(repoRoot, 'packages/preset/preset/loadout/agent.cordis.yml')
+const loadoutPath = resolve(repoRoot, 'packages/dsh-loadout/preset/loadout/agent.cordis.yml')
 const scratch: string[] = []
 
 afterEach(() => {

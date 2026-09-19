@@ -1,0 +1,42 @@
+{
+  "name": "dsh-loadout",
+  "version": "0.1.0",
+  "description": "One install gives DeepSeek Harness the loadout agent preset: DSH Standard, a task-first persona, and five bundled engineering skills",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darrien1998/dsh-loadout.git"
+  },
+  "homepage": "https://github.com/darrien1998/dsh-loadout#readme",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "agent-preset",
+    "skills"
+  ],
+  "exports": {
+    "./materialize": "./materialize.mjs",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "cordis.patch.yml",
+    "materialize.mjs",
+    "preset",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-home-paths": "0.1.0-rc.5"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-home-paths": {
+      "optional": true
+    }
+  }
+}

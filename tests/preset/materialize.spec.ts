@@ -8,10 +8,10 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { COMPOSITION_VERSION, MARKER_FILE, PRESET_ID, apply, materializePreset, presetSourceDir } from '../../packages/preset/materialize.mjs'
+import { COMPOSITION_VERSION, MARKER_FILE, PRESET_ID, apply, materializePreset, presetSourceDir } from '../../packages/dsh-loadout/materialize.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const sourceDir = resolve(here, '../../packages/preset/preset/loadout')
+const sourceDir = resolve(here, '../../packages/dsh-loadout/preset/loadout')
 const homes: string[] = []
 
 afterEach(() => {
@@ -65,7 +65,7 @@ describe('Loadout preset materialization', () => {
     expect(marker.presetId).toBe(PRESET_ID)
     expect(marker.version).toBe(COMPOSITION_VERSION)
     expect(marker.materializedAt).toBe('2026-01-01T00:00:00.000Z')
-    expect(marker.source).toBe('@loadout/dsh-preset')
+    expect(marker.source).toBe('dsh-loadout')
     expect(marker.sourceHash).toBe(report.sourceHash)
     expect(hashTree(report.presetDir)).toBe(report.sourceHash)
   })

@@ -1,6 +1,6 @@
 // One Loadout bundle install on the REAL pinned DSH web profile.
 //
-// pack preset + bundle -> 'dsh plugin --profile web add' both tarballs ->
+// pack the package -> 'dsh plugin --profile web add' the tarball ->
 // dump-config -> boot the web profile ('--port 0') with a verification driver
 // that reads the native roster, cold-mounts the loadout composition, lists the
 // bundled skills through the skill registry in the preset's scope, loads one,
@@ -10,7 +10,7 @@
 // Requires a BUILT checkout: DSH_SOURCE_DIR (default: the sibling
 // ../deepseek-harness). Uses a temporary DSH_HOME and removes it afterward.
 import { spawn } from 'node:child_process'
-import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -59,29 +59,6 @@ async function tarball(packDirectory: string, prefix: string): Promise<string> {
   const name = names.find(candidate => candidate.startsWith(prefix) && candidate.endsWith('.tgz'))
   assert.ok(name, 'missing ' + prefix + ' tarball in ' + packDirectory)
   return join(packDirectory, name)
-}
-
-interface BundleManifest {
-  dependencies: Record<string, string>
-  dsh: { bundle: { patch: string } }
-}
-
-/**
- * The source bundle depends on the preset by workspace protocol, which the
- * profile's package manager cannot resolve; this disposable copy points at
- * the packed tarball instead. The source manifest keeps the publishable form.
- */
-async function createLocalBundleFixture(scratch: string, presetTarball: string): Promise<string> {
-  const sourceDirectory = join(projectRoot, 'packages', 'bundle')
-  const manifest = JSON.parse(await readFile(join(sourceDirectory, 'package.json'), 'utf8')) as BundleManifest
-  assert.equal(manifest.dependencies['@loadout/dsh-preset'], 'workspace:^')
-  assert.equal(manifest.dsh.bundle.patch, './cordis.patch.yml')
-  const fixtureDirectory = join(scratch, 'local-bundle')
-  await mkdir(fixtureDirectory, { recursive: true })
-  await cp(join(sourceDirectory, 'cordis.patch.yml'), join(fixtureDirectory, 'cordis.patch.yml'))
-  manifest.dependencies['@loadout/dsh-preset'] = 'file:' + presetTarball.replaceAll('\\', '/')
-  await writeFile(join(fixtureDirectory, 'package.json'), JSON.stringify(manifest, null, 2) + '\n')
-  return fixtureDirectory
 }
 
 /** Boot-time verification driver for the REAL web profile. */
@@ -168,18 +145,15 @@ await mkdir(packDirectory, { recursive: true })
 const env = { ...process.env, DSH_HOME: dshHome, DSH_AGENTS_HOME: join(scratch, 'agents-home'), DSH_TELEMETRY_DISABLED: '1' }
 
 try {
-  expectSuccess('preset pack', await execute(pnpm, ['--filter', '@loadout/dsh-preset', 'pack', '--pack-destination', packDirectory], projectRoot, env))
-  const presetTarball = await tarball(packDirectory, 'loadout-dsh-preset-')
-  const localBundle = await createLocalBundleFixture(scratch, presetTarball)
-  expectSuccess('local bundle fixture pack', await execute(pnpm, ['pack', '--pack-destination', packDirectory], localBundle, env))
-  const bundleTarball = await tarball(packDirectory, 'loadout-dsh-0.1.0')
+  expectSuccess('package pack', await execute(pnpm, ['--filter', 'dsh-loadout', 'pack', '--pack-destination', packDirectory], projectRoot, env))
+  const packageTarball = await tarball(packDirectory, 'dsh-loadout-0.1.0')
 
-  expectSuccess('dsh web plugin add', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'add', presetTarball, bundleTarball], dshRoot, env))
+  expectSuccess('dsh web plugin add', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'add', packageTarball], dshRoot, env))
 
   const dump = await execute(process.execPath, [dshBin, '--profile', profile, '--dump-config'], dshRoot, env)
   expectSuccess('dsh web dump-config after add', dump)
   assert.match(dump.output, /id: loadout-preset/)
-  assert.match(dump.output, /name: '@loadout\/dsh-preset\/materialize'/)
+  assert.match(dump.output, /name: 'dsh-loadout\/materialize'/)
   assert.match(dump.output, /id: agent-presets/)
 
   const profileDirectory = join(dshHome, 'profiles', profile)
@@ -194,7 +168,7 @@ try {
   assert.equal(existsSync(join(presetDir, '.loadout-materialized.json')), true)
   for (const skill of SKILLS) assert.equal(existsSync(join(presetDir, 'skills', skill, 'SKILL.md')), true, skill + ' materialized')
 
-  expectSuccess('dsh web plugin remove', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'remove', '@loadout/dsh', '@loadout/dsh-preset'], dshRoot, env))
+  expectSuccess('dsh web plugin remove', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'remove', 'dsh-loadout'], dshRoot, env))
   await preparePostRemoveDriver(profileDirectory)
   expectSuccess('dsh web profile boot after removal', await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0'], dshRoot, env))
   assert.equal(existsSync(presetDir), false, 'the supported authoring delete removed the preset directory')

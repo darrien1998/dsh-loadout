@@ -30,13 +30,7 @@ importers:
         specifier: ^4.1.8
         version: 4.1.11(@types/node@22.20.3)(esbuild@0.28.2)(tsx@4.23.13)
 
-  packages/bundle:
-    dependencies:
-      '@loadout/dsh-preset':
-        specifier: workspace:^
-        version: link:../preset
-
-  packages/preset: {}
+  packages/dsh-loadout: {}
 
 packages:
 

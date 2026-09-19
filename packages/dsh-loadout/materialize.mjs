@@ -1,6 +1,6 @@
-// Boot-time preset materialization for the Loadout bundle.
+// Boot-time preset materialization for the dsh-loadout package.
 //
-// A plugin row on the HOST plane (inserted by the @loadout/dsh bundle patch):
+// A plugin row on the HOST plane (inserted by the package's own bundle patch):
 // it runs once per boot and materializes the `loadout` preset - composition,
 // metadata, and the bundled skills - into DSH's public writable preset root
 // (<dshHome>/.agent-presets). Discovery re-reads that root on every list(),
@@ -58,7 +58,7 @@ export const PRESET_ID = 'loadout'
 export const MARKER_FILE = '.loadout-materialized.json'
 
 /** Package name recorded in the marker. */
-const SOURCE_PACKAGE = '@loadout/dsh-preset'
+const SOURCE_PACKAGE = 'dsh-loadout'
 
 /**
  * Composition generation of the shipped preset tree. Bump on every shipped

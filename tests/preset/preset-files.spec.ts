@@ -12,7 +12,7 @@ const harnessRoot = resolve(repoRoot, '../deepseek-harness')
 const PRESET_ID = 'loadout'
 // The containment pattern a preset id must match (packages/preset/agent-presets/src/preset.ts).
 const PRESET_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
-const userRoot = resolve(repoRoot, 'packages/preset/preset')
+const userRoot = resolve(repoRoot, 'packages/dsh-loadout/preset')
 const shippedRoot = resolve(harnessRoot, 'apps/cli/config/agent-presets')
 
 describe('Loadout preset identity and discovery', () => {

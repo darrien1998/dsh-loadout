@@ -16,7 +16,7 @@ import {
 } from '../contract.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const skillsRoot = resolve(here, '../../packages/preset/preset/loadout/skills')
+const skillsRoot = resolve(here, '../../packages/dsh-loadout/preset/loadout/skills')
 
 interface ParsedSkill {
   readonly name: string

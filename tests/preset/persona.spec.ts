@@ -7,7 +7,7 @@ import { loadComposition } from './parity.ts'
 import { BANNED_TOKENS, BUNDLED_SKILLS, PERSONA_MAX_CHARACTERS, ROLE_PLAY_TOKENS } from '../contract.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const loadoutPath = resolve(here, '../../packages/preset/preset/loadout/agent.cordis.yml')
+const loadoutPath = resolve(here, '../../packages/dsh-loadout/preset/loadout/agent.cordis.yml')
 
 async function persona(): Promise<string> {
   const row = (await loadComposition(loadoutPath)).find(candidate => candidate.id === 'persona')
