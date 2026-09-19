@@ -35,7 +35,9 @@
 // Removal is NOT this plugin's job: rc.5 provides no uninstall hook for
 // removed bundles, and automatic deletion would destroy user edits. The
 // supported deletion is DSH's own authoring delete (ctx.agentPresets.remove,
-// the same method the Web UI calls).
+// the same method the Web UI calls). And a materialization failure of any
+// kind is logged and skipped, never thrown into the boot: the preset is
+// absent that boot and the next boot retries.
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { dirname, join, relative } from 'node:path'
@@ -233,10 +235,17 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
   return { action: 'created', presetDir: target, markerPath, sourceHash }
 }
 
-/** Cordis plugin entry: materialize once per boot, then stay silent. */
+/** Cordis plugin entry: materialize once per boot, then stay silent. A failure is logged and skipped - the preset is absent this boot and the next boot retries; a convenience row must never make the harness unbootable. */
 export function apply(ctx) {
-  const home = resolveDshHome()
-  const report = materializePreset({ home, sourceDir: presetSourceDir() })
+  let report
+  try {
+    report = materializePreset({ home: resolveDshHome(), sourceDir: presetSourceDir() })
+  } catch (error) {
+    const line = 'loadout-preset: materialization failed - ' + (error instanceof Error ? error.message : String(error)) + ' (the preset is absent this boot; the next boot retries)'
+    if (ctx?.logger?.error) ctx.logger.error(line)
+    else console.error(line)
+    return
+  }
   if (report.action === 'present-outdated' || report.action === 'upgraded') {
     const line = 'loadout-preset: ' + report.action + ' - ' + report.note
     if (ctx?.logger?.warn) ctx.logger.warn(line)

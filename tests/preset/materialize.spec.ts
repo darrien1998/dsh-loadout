@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { COMPOSITION_VERSION, MARKER_FILE, PRESET_ID, materializePreset, presetSourceDir } from '../../packages/preset/materialize.mjs'
+import { COMPOSITION_VERSION, MARKER_FILE, PRESET_ID, apply, materializePreset, presetSourceDir } from '../../packages/preset/materialize.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const sourceDir = resolve(here, '../../packages/preset/preset/loadout')
@@ -156,5 +156,26 @@ describe('Loadout preset materialization', () => {
     const first = materializePreset({ home: await freshHome(), sourceDir })
     const second = materializePreset({ home: await freshHome(), sourceDir })
     expect(first.sourceHash).toBe(second.sourceHash)
+  })
+
+  it('the plugin entry logs a materialization failure and returns, never throwing into the boot', async () => {
+    // A harness home that is a FILE: creating the preset root under it must fail.
+    const dir = await freshHome()
+    const home = join(dir, 'not-a-directory')
+    writeFileSync(home, '')
+    const previous = process.env.DSH_HOME
+    process.env.DSH_HOME = home
+    const errors: string[] = []
+    const warns: string[] = []
+    try {
+      expect(() => apply({ logger: { error: (line: string) => errors.push(line), warn: (line: string) => warns.push(line) } })).not.toThrow()
+    } finally {
+      if (previous === undefined) delete process.env.DSH_HOME
+      else process.env.DSH_HOME = previous
+    }
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain('materialization failed')
+    expect(errors[0]).toContain('next boot retries')
+    expect(warns).toEqual([])
   })
 })
