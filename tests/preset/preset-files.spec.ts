@@ -1,24 +1,29 @@
 // Stable preset identity, display name, discovery through the supported DSH
 // mechanism, and the shipped presets left intact.
 import { readFile } from 'node:fs/promises'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { scanRoot } from '@deepseek-ai/dsh-agent-presets'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
-const harnessRoot = resolve(repoRoot, '../deepseek-harness')
+const harnessRoot = resolve(repoRoot, '../deepseek-harness-0.1.5')
+// 0.1.5's scanRoot resolves every row's plugin name from the harness base
+// (production passes ctx.baseUrl, where the installed harness lives). In the
+// pinned checkout that is the built CLI: every shipped plugin is installed
+// beside it.
+const harnessBase = pathToFileURL(join(harnessRoot, 'apps', 'cli', '/')).href
 const PRESET_ID = 'loadout'
 // The containment pattern a preset id must match (packages/preset/agent-presets/src/preset.ts).
 const PRESET_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const userRoot = resolve(repoRoot, 'packages/dsh-loadout/preset')
-const shippedRoot = resolve(harnessRoot, 'apps/cli/config/agent-presets')
+const shippedRoot = resolve(harnessRoot, 'packages/preset/agent-presets/presets')
 
 describe('Loadout preset identity and discovery', () => {
   it('has the stable preset id loadout, valid as a preset directory name and not a shipped id', () => {
     expect(PRESET_ID).toMatch(PRESET_ID_PATTERN)
-    expect(['standard', 'code', 'minimal', 'cordis']).not.toContain(PRESET_ID)
+    expect(['standard', 'ptc', 'minimal', 'cordis']).not.toContain(PRESET_ID)
   })
 
   it('declares the display name Loadout and a description', async () => {
@@ -28,7 +33,7 @@ describe('Loadout preset identity and discovery', () => {
   })
 
   it('is discoverable through the supported DSH user-root mechanism, healthy and trusted user', async () => {
-    const found = await scanRoot({ path: userRoot, trust: 'user' })
+    const found = await scanRoot({ path: userRoot, trust: 'user' }, harnessBase)
     expect(found.map(preset => preset.id)).toEqual([PRESET_ID])
     const preset = found[0]!
     expect(preset.trust).toBe('user')
@@ -38,8 +43,10 @@ describe('Loadout preset identity and discovery', () => {
   })
 
   it('keeps the shipped presets discoverable and unchanged', async () => {
-    const found = await scanRoot({ path: shippedRoot, trust: 'system' })
-    expect(found.map(preset => preset.id)).toEqual(['standard', 'code', 'minimal', 'cordis'])
+    const found = await scanRoot({ path: shippedRoot, trust: 'system' }, harnessBase)
+    const ids = found.map(preset => preset.id)
+    expect(ids).toEqual(['standard', 'ptc', 'minimal', 'cordis'])
+    expect(ids).not.toContain(PRESET_ID)
     expect(found.every(preset => preset.broken === undefined)).toBe(true)
   })
 })

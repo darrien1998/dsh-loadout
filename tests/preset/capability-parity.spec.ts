@@ -1,7 +1,8 @@
 // Capability parity between the loadout composition and the pinned Standard
 // composition: every Standard row present with an identical shape and config,
-// in Standard's order, the persona differing in text only, the added skills
-// row exactly as designed - and a guard that bites on each kind of drift.
+// in Standard's order, no row added, the persona differing in prefix/suffix
+// only, the skill-filesystem row carrying exactly the preset-local skills
+// root - and a guard that bites on each kind of drift.
 import { rmSync } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -12,7 +13,7 @@ import { analyzeParity, loadComposition } from './parity.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
-const standardPath = resolve(repoRoot, '../deepseek-harness/apps/cli/config/agent-presets/standard/agent.cordis.yml')
+const standardPath = resolve(repoRoot, '../deepseek-harness-0.1.5/packages/preset/agent-presets/presets/standard/agent.cordis.yml')
 const loadoutPath = resolve(repoRoot, 'packages/dsh-loadout/preset/loadout/agent.cordis.yml')
 const scratch: string[] = []
 
@@ -27,12 +28,13 @@ const CAPABILITIES: Readonly<Record<string, readonly string[]>> = {
   search: ['tool-fs-search'],
   shell: ['tool-bash', 'tool-pwsh'],
   skills: ['skill-filesystem', 'tool-skill'],
-  goals: ['tool-goal'],
+  goals: ['command-goal', 'tool-goal'],
   planning: ['plan-mode'],
   'background jobs': ['tool-jobs'],
   compaction: ['compaction-basic', 'command-compact', 'tool-result-pruner'],
   subagents: ['tool-subagent-control', 'tool-subagent-list-agents', 'tool-subagent', 'tool-subagent-fork'],
   workflow: ['workflow-worker-thread', 'tool-workflow', 'tool-ralph'],
+  presentation: ['present'],
 }
 
 describe('Loadout capability parity with the pinned Standard composition', () => {
@@ -42,41 +44,45 @@ describe('Loadout capability parity with the pinned Standard composition', () =>
     for (const row of report.rows) {
       expect(row.classification, row.id).not.toBe('MISSING')
     }
-    expect(report.standardIds).toEqual(report.rows.filter(row => row.classification !== 'ADDED').map(row => row.id))
+    expect(report.standardIds).toEqual(report.rows.map(row => row.id))
   })
 
-  it('adds exactly one row: loadout-skills', async () => {
+  it('adds no row and keeps Standard\'s top-level order', async () => {
     const report = await analyzeParity(standardPath, loadoutPath)
-    expect(report.rows.filter(row => row.classification === 'ADDED').map(row => row.id)).toEqual(['loadout-skills'])
-    // Standard carries no presentation row and neither does loadout: presentation stays native.
+    expect(report.rows.filter(row => row.classification === 'ADDED')).toEqual([])
+    expect(report.targetTopLevelIds).toEqual(report.standardTopLevelIds)
     expect(report.targetIds).not.toContain('tool-presentation')
   })
 
-  it('the persona is the only Standard row that differs, with the template variables intact', async () => {
+  it('differs from Standard in exactly two rows: the persona text and the skill root', async () => {
     const report = await analyzeParity(standardPath, loadoutPath)
-    expect(report.rows.filter(row => row.classification === 'INTENTIONALLY DIFFERENT').map(row => row.id)).toEqual(['persona'])
+    expect(report.rows.filter(row => row.classification === 'INTENTIONALLY DIFFERENT').map(row => row.id)).toEqual(['persona', 'skill-filesystem'])
+  })
+
+  it('the persona keeps 0.1.5\'s prefix/suffix shape with the template variables intact', async () => {
     const [persona] = (await loadComposition(loadoutPath)).filter(row => row.id === 'persona')
-    const text = JSON.stringify(persona?.config)
+    const config = persona?.config as Record<string, unknown>
+    expect(Object.keys(config).sort()).toEqual(['prefix', 'suffix'])
+    const text = JSON.stringify(config)
     expect(text).toContain('{{model}}')
     expect(text).toContain('{{cwd}}')
   })
 
-  it('the loadout-skills row is an isolated second skill-filesystem provider over the materialized skills root', async () => {
-    const row = (await loadComposition(loadoutPath)).find(candidate => candidate.id === 'loadout-skills')
+  it('the skill-filesystem row adds the preset-local skills root the way upstream\'s cordis preset does', async () => {
+    const row = (await loadComposition(loadoutPath)).find(candidate => candidate.id === 'skill-filesystem')
     expect(row?.name).toBe('@deepseek-ai/dsh-skill-filesystem')
-    const config = row?.config as Record<string, unknown>
-    expect(config.providerName).toBe('loadout')
-    expect(config.includeDefaultRoots).toBe(false)
-    expect(config.watch).toBe(false)
-    expect(JSON.stringify(config.bundledSkillDir)).toContain("dshHomePath('.agent-presets', 'loadout', 'skills')")
+    const config = row?.config as { customSkillDirs?: unknown[] }
+    expect(Object.keys(config)).toEqual(['customSkillDirs'])
+    expect(config.customSkillDirs).toHaveLength(1)
+    expect(JSON.stringify(config.customSkillDirs![0])).toContain("new URL('skills/', baseUrl)")
   })
 
   it('covers every capability group', async () => {
     const report = await analyzeParity(standardPath, loadoutPath)
-    const present = new Set(report.rows.filter(row => row.classification === 'PRESENT').map(row => row.id))
+    const settled = new Set(report.rows.filter(row => row.classification !== 'MISSING').map(row => row.id))
     for (const [capability, rows] of Object.entries(CAPABILITIES)) {
       for (const row of rows) {
-        expect(present.has(row), capability + ' -> ' + row).toBe(true)
+        expect(settled.has(row), capability + ' -> ' + row).toBe(true)
       }
     }
   })
@@ -91,12 +97,7 @@ describe('Loadout capability parity with the pinned Standard composition', () =>
     expect(JSON.stringify(standard.find(row => row.id === 'tool-pwsh')?.disabled)).toContain('process.platform')
   })
 
-  it('keeps Standard\'s top-level row order and appends loadout-skills last', async () => {
-    const report = await analyzeParity(standardPath, loadoutPath)
-    expect(report.targetTopLevelIds).toEqual([...report.standardTopLevelIds, 'loadout-skills'])
-  })
-
-  describe('the guard bites on drift the old comparison ignored', () => {
+  describe('the guard bites on every drift the README rules out', () => {
     /** A copy of the loadout composition with one edit applied; the edit must actually change the text. */
     async function mutated(transform: (text: string) => string): Promise<string> {
       const dir = await mkdtemp(join(tmpdir(), 'loadout-parity-'))
@@ -122,10 +123,22 @@ describe('Loadout capability parity with the pinned Standard composition', () =>
       expect(report.rows.find(row => row.id === 'persona')?.classification).toBe('MISSING')
     })
 
-    it('a persona config that changes more than text is drift', async () => {
-      const path = await mutated(text => text.replace("  config:\n    text: |-\n      Model:", "  config:\n    complete: true\n    text: |-\n      Model:"))
+    it('a persona config that changes more than prefix and suffix is drift', async () => {
+      const path = await mutated(text => text.replace('  config:\n    prefix: |-\n      Model:', '  config:\n    complete: true\n    prefix: |-\n      Model:'))
       const report = await analyzeParity(standardPath, path)
       expect(report.rows.find(row => row.id === 'persona')?.classification).toBe('MISSING')
+    })
+
+    it('a skill-filesystem config that carries anything beyond the skills root is drift', async () => {
+      const path = await mutated(text => text.replace('  config:\n    customSkillDirs:', '  config:\n    watch: false\n    customSkillDirs:'))
+      const report = await analyzeParity(standardPath, path)
+      expect(report.rows.find(row => row.id === 'skill-filesystem')?.classification).toBe('MISSING')
+    })
+
+    it('a skills root that does not resolve beside the composition is drift', async () => {
+      const path = await mutated(text => text.replace("new URL('skills/', baseUrl)", "new URL('skills/', 'file:///elsewhere/')"))
+      const report = await analyzeParity(standardPath, path)
+      expect(report.rows.find(row => row.id === 'skill-filesystem')?.classification).toBe('MISSING')
     })
   })
 })

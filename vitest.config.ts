@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-const dsh = (relative: string): string => fileURLToPath(new URL(`../deepseek-harness/${relative}`, import.meta.url))
+const dsh = (relative: string): string => fileURLToPath(new URL(`../deepseek-harness-0.1.5/${relative}`, import.meta.url))
 
 // Every DSH import resolves against the pinned sibling checkout, never an
 // npm canary: the analyzer parses compositions with the loader's own YAML

@@ -7,10 +7,12 @@
 // own YAML dialect (entryListSchema, the one carrying !!js) and classifies
 // every row PRESENT / INTENTIONALLY DIFFERENT / ADDED / MISSING. A row is
 // PRESENT only when its whole shape (every key but `config`: name, disabled,
-// group, isolate, anything else) and its config match; the persona is
-// INTENTIONALLY DIFFERENT only when its shape matches and its config differs
-// in `text` alone. The parity tests fail the moment upstream Standard gains a
-// row this copy lacks, or the copy drifts in any other key.
+// group, isolate, anything else) and its config match; two rows may differ:
+// the persona (its config is exactly `prefix` and `suffix`) and
+// `skill-filesystem` (its config is exactly the preset-local skills root); no
+// row may be added and the top-level order is Standard's. The parity tests
+// fail the moment upstream Standard gains a row this copy lacks, or the copy
+// drifts in any other key.
 import { readFile } from 'node:fs/promises'
 import { load } from 'js-yaml'
 import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
@@ -98,6 +100,30 @@ export async function loadComposition(path: string): Promise<CompositionRow[]> {
   return [...(await readComposition(path)).rows.values()]
 }
 
+/** The one !!js expression the skill root may carry: the preset's own skills/ directory, resolved from the composition's baseUrl. */
+const SKILL_ROOT_EXPRESSION = "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+
+/** Rows that may differ from Standard, each with the exact delta it may carry. */
+const INTENTIONAL: Readonly<Record<string, { readonly note: string; readonly allowed: (source: CompositionRow, copy: CompositionRow) => boolean }>> = {
+  persona: {
+    note: 'Loadout persona prefix and suffix; every other key identical',
+    allowed: (source, copy) => {
+      const keys = (row: CompositionRow): string[] => Object.keys((row.config ?? {}) as Record<string, unknown>).sort()
+      return same(keys(source), ['prefix', 'suffix']) && same(keys(copy), ['prefix', 'suffix'])
+    },
+  },
+  'skill-filesystem': {
+    note: 'the preset-local skills root, the way the shipped cordis preset wires it',
+    allowed: (source, copy) => {
+      if (source.config !== undefined) return false
+      const config = copy.config as { customSkillDirs?: unknown } | undefined
+      if (config === undefined || !same(Object.keys(config), ['customSkillDirs'])) return false
+      const dirs = config.customSkillDirs
+      return Array.isArray(dirs) && dirs.length === 1 && same(dirs[0], { __jsExpr: SKILL_ROOT_EXPRESSION })
+    },
+  },
+}
+
 export async function analyzeParity(standardPath: string, targetPath: string): Promise<ParityReport> {
   const standard = await readComposition(standardPath)
   const target = await readComposition(targetPath)
@@ -114,10 +140,11 @@ export async function analyzeParity(standardPath: string, targetPath: string): P
     }
     const sameShape = same(omit(source, 'config'), omit(copy, 'config'))
     const sameConfig = same(source.config, copy.config)
+    const intentional = INTENTIONAL[id]
     if (sameShape && sameConfig) {
       rows.push({ id, classification: 'PRESENT' })
-    } else if (id === 'persona' && sameShape && same(omit(source.config, 'text'), omit(copy.config, 'text'))) {
-      rows.push({ id, classification: 'INTENTIONALLY DIFFERENT', note: 'Loadout persona text; template variables preserved' })
+    } else if (intentional !== undefined && sameShape && intentional.allowed(source, copy)) {
+      rows.push({ id, classification: 'INTENTIONALLY DIFFERENT', note: intentional.note })
     } else {
       rows.push({ id, classification: 'MISSING', note: 'same id but a different shape or config - capability drift' })
     }
@@ -131,6 +158,6 @@ export async function analyzeParity(standardPath: string, targetPath: string): P
     targetIds: [...targetById.keys()].sort(),
     standardTopLevelIds: standard.topLevelIds,
     targetTopLevelIds: target.topLevelIds,
-    rows: rows.sort((left, right) => left.id.localeCompare(right.id)),
+    rows: rows.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)),
   }
 }

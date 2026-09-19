@@ -1,24 +1,24 @@
 # The `loadout` agent preset: the shipped Standard composition, a task-first
 # persona, and the bundled Loadout skills.
 #
-# rc.5 has NO patch/inheritance semantics at the preset layer, so this file
-# is a deliberate full copy of the shipped `standard` composition - the same
-# cost upstream accepts for `code` and `cordis`. tests/preset/capability-
-# parity.spec.ts machine-checks that every Standard row is present here with
-# identical name/config/disabled, and that the delta is exactly: the persona
-# text, plus the `loadout-skills` row at the end. Do not edit capability rows
-# here without updating that contract.
+# DSH has NO patch/inheritance semantics at the preset layer, so this file is
+# a deliberate full copy of the shipped `standard` composition (DSH 0.1.5) -
+# the same cost upstream accepts for `ptc` and `cordis`.
+# tests/preset/capability-parity.spec.ts machine-checks that every Standard
+# row is present here with an identical shape and config, in Standard's
+# order, and that the delta is exactly: the persona prefix/suffix, and the
+# `skill-filesystem` row's preset-local skills root. Do not edit capability
+# rows here without updating that contract.
 #
 # Everything from the first row onward is Standard verbatim (Standard's own
-# in-body comments preserved), except the persona text and the final row.
+# in-body comments preserved), except the persona text and the skills root.
 #
 # This file is an AGENT-PLANE composition. The roster mounts it ONCE under a
 # standing scope; every session naming it joins by scope parentage, so the
 # tools and prompt sections registered here cover each joined agent while a
 # session's own state stays keyed per Session/Agent inside the plugins. The
-# host composition (`base.cordis.yml` + `web.cordis.yml`) keeps everything a
-# preset must not own: the registries themselves, the sandbox and approval
-# stack, persistence, and the model route.
+# host composition keeps everything a preset must not own: the registries
+# themselves, the sandbox and approval stack, persistence, and the model route.
 #
 # A service row here MUST sit inside a group carrying an `isolate` realm.
 # Without one it publishes into the root realm, where it is process-global -
@@ -34,13 +34,13 @@
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: |-
+    prefix: |-
       Model: {{model}}. Working directory: {{cwd}}.
 
       Before acting, check the skill catalog; when one matches, load it with the `skill` tool and follow it.
       New feature or unclear requirement: brainstorming or grill-me. Bug or failing test: systematic-debugging.
       Writing code: test-driven-development. About to say done: verification-before-completion.
-
+    suffix: |-
       Standing rules:
       - Inspect before uncertain mutation: read the code and tests around the change first.
       - Non-trivial work: state the plan (files, steps, how it will be verified) and get approval before editing; todo_write tracks the approved steps.
@@ -103,20 +103,29 @@
 # `skill-filesystem` contributes local-root discovery for agents on this preset, and
 # `tool-skill` gives them the catalog and loader; the merged catalog also
 # carries whatever the deployment registered globally (repository plugins).
+# The bundled Loadout skills travel with this preset rather than living in the
+# user's skill root: `baseUrl` is the composition's own directory, so the root
+# resolves wherever the preset is installed - the same wiring the shipped
+# `cordis` preset uses for its own skills. A custom root ranks between the
+# project roots and the user roots: a project skill still overrides a bundled
+# one, and a bundled one overrides a same-named user skill.
 - id: skill-filesystem
   name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
 
 - id: tool-skill
   name: '@deepseek-ai/dsh-tool-skill'
 
 # ── goals ───────────────────────────────────────────────────────────────────
 
-# Only the model-facing tool. The goal SERVICE, its session driver, and the
-# `/goal` command stay on the host plane: the Gateway serves the goal domain as
-# Remote endpoints whose receiver comes from a generated descriptor, so it
-# resolves `goals` on the host and an entry-local realm here would hide it. The
-# registry is keyed by session anyway, so one host instance serves every
-# session. What a preset chooses is whether its agent can call the goal tool.
+# The goal service and session driver stay on the host plane, where the Gateway
+# can resolve them. The human command and model-facing tool register into this
+# preset's scoped layers.
+- id: command-goal
+  name: '@deepseek-ai/dsh-command-goal'
+
 - id: tool-goal
   name: '@deepseek-ai/dsh-tool-goal'
 
@@ -188,12 +197,6 @@
 # `workflows` is different — nothing outside an agent reads it — so every row
 # that reaches it shares one entry-local realm here, and a consumer left
 # outside would resolve a host registry this preset does not populate.
-#
-# `tool-subagent-report` is host-plane for the same reason as the registry,
-# not because a preset may not want it: it registers a CONTINUABLE SETUP on
-# that singleton rather than a tool this agent calls, and the setup list is
-# not scope-aware — one copy per mounted preset means every child gets
-# `report` registered once per live session, which throws on the second.
 - id: delegation
   name: cordis:group
   group: true
@@ -211,8 +214,13 @@
       config:
         provider: spawn
         toolName: subagent
+        modelSelectionSettings: true
         backgroundMode: continuable
 
+    # Fork omits model selection so provider/model stay equal to the parent and
+    # the inherited history remains eligible for KV Cache reuse. This preset
+    # keeps fork continuable; parent and child inherit the same messaging tool,
+    # while the parent id and return guidance follow the inherited history.
     - id: tool-subagent-fork
       name: '@deepseek-ai/dsh-tool-subagent'
       config:
@@ -220,16 +228,17 @@
         toolName: subagent_fork
         backgroundMode: continuable
 
-    # Product providers are host-plane singletons. Copy this preset, then
-    # remove `disabled` from either ordinary tool row to expose that product
-    # only to agents composed from the copy.
+    # Production dsh does not install these optional providers. Install the
+    # matching Bundle in this Profile and restart the Host, then copy this
+    # preset and remove `disabled` from the matching tool row. Host availability
+    # alone grants no tool.
     - id: tool-subagent-codex
       name: '@deepseek-ai/dsh-tool-subagent'
       disabled: true
       config:
         provider: codex
         toolName: subagent_codex
-        enableRunInBackground: false
+        backgroundMode: one-shot
         maxDepth: provider-managed
 
     - id: tool-subagent-claude-code
@@ -238,7 +247,7 @@
       config:
         provider: claude-code
         toolName: subagent_claude_code
-        enableRunInBackground: false
+        backgroundMode: one-shot
         maxDepth: provider-managed
 
     - id: workflow-worker-thread
@@ -270,24 +279,8 @@
 - id: tool-web
   name: '@deepseek-ai/dsh-tool-web'
   config:
-    fetch: false
+    fetch: true
     searchTimeoutMs: 60000
 
-# ── loadout ─────────────────────────────────────────────────────────────────
-
-# The bundled Loadout skills. A second skill-filesystem provider, isolated to
-# its explicit root (`includeDefaultRoots: false`), so the project and user
-# skill roots are scanned once, by the Standard `skill-filesystem` row above,
-# and this row only adds the skills that ship with the preset. The root is the
-# `skills/` directory materialized next to this file under the harness home;
-# `dshHomePath` is the resolver app-boot provides to `!!js` config expressions.
-# Registered from the preset's standing composition, the skills live in THIS
-# preset's layer and no other preset sees them. Provider names are unique per
-# layer, so `loadout` sits beside Standard's default `filesystem` provider.
-- id: loadout-skills
-  name: '@deepseek-ai/dsh-skill-filesystem'
-  config:
-    providerName: loadout
-    includeDefaultRoots: false
-    watch: false
-    bundledSkillDir: !!js dshHomePath('.agent-presets', 'loadout', 'skills')
+- id: present
+  name: '@deepseek-ai/dsh-tool-present'

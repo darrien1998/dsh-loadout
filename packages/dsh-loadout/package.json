@@ -32,7 +32,7 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-home-paths": "0.1.0-rc.5"
+    "@deepseek-ai/dsh-home-paths": "0.1.5-rc.2"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-home-paths": {
