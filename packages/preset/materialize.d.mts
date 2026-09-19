@@ -27,7 +27,7 @@ export interface MaterializeOptions {
   readonly sourceDir: string
   readonly presetId?: string
   readonly now?: () => string
-  /** Test seam: invoked after the tree is staged and before the claiming rename. */
+  /** Test seam: invoked after the tree is staged and before the claiming rename (create) or the swap (upgrade). */
   readonly onStaged?: () => void
 }
 

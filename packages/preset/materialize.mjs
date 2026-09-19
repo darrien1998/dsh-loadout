@@ -21,12 +21,16 @@
 //   version >= current       -> up to date: 'present'.
 //   version <  current AND dir hash == marker hash -> byte-identical to the
 //                               generation we materialized and never edited:
-//                               safe in-place refresh: 'upgraded'.
+//                               the new generation is staged beside it and
+//                               swapped in whole: 'upgraded'.
 //
-// A crash before the claiming rename leaves only a dot-prefixed staging
-// directory beside the presets, invisible to discovery, and no target; the
-// next boot creates cleanly. Stale staging directories are not swept
-// automatically.
+// Both writes go through a staged tree. A crash before the claiming rename
+// leaves only a dot-prefixed staging directory beside the presets, invisible
+// to discovery, and no target; the next boot creates cleanly. A crash between
+// an upgrade's two renames leaves a dot-prefixed `-previous-` directory and
+// no target, never a target whose bytes disagree with its marker; the next
+// boot creates cleanly. Stale staging and `-previous-` directories are not
+// swept automatically.
 //
 // Preset and skills are one generation unit on purpose: a user who edits a
 // skill keeps that edit forever, at the cost of freezing the whole preset at
@@ -83,7 +87,8 @@ function hashTree(dir) {
     }
   }
   walk(dir)
-  for (const [path, content] of entries.sort(([left], [right]) => left.localeCompare(right))) {
+  // Codepoint order, not locale order: the fingerprint must not shift with the machine's locale.
+  for (const [path, content] of entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
     hash.update(path); hash.update('\u0000'); hash.update(content); hash.update('\u0000')
   }
   return hash.digest('hex')
@@ -106,7 +111,7 @@ export function readMaterializationMarker(presetDir) {
   }
 }
 
-/** Copy one tree over another; directories merge, files overwrite. Used only after the no-edits proof. */
+/** Copy one tree into another; directories merge, files overwrite. Only ever aimed at a fresh staging directory. */
 function copyTree(from, to) {
   for (const entry of readdirSync(from).sort()) {
     const source = join(from, entry)
@@ -124,6 +129,20 @@ function marker(presetId, sourceHash, now) {
   return JSON.stringify({ presetId, version: COMPOSITION_VERSION, materializedAt: now(), sourceHash, source: SOURCE_PACKAGE }, null, 2) + '\n'
 }
 
+/** Stage the complete tree - files AND marker - beside the target. Returns the staging path; the caller claims or swaps it. */
+function stageTree(presetRoot, presetId, sourceDir, sourceHash, now) {
+  const stage = mkdtempSync(join(presetRoot, '.' + presetId + '-staging-'))
+  try {
+    copyTree(sourceDir, stage)
+    writeFileSync(join(stage, MARKER_FILE), marker(presetId, sourceHash, now))
+  } catch (error) {
+    // Nothing reached the target; drop the partial stage so nothing occupies the root.
+    rmSync(stage, { recursive: true, force: true })
+    throw error
+  }
+  return stage
+}
+
 /**
  * Materialize (or safely upgrade) the preset under the harness-home preset
  * root. See the module doc for the decision table.
@@ -132,7 +151,7 @@ function marker(presetId, sourceHash, now) {
  * @param sourceDir - directory holding the preset files to copy.
  * @param presetId - preset id; defaults to `loadout`.
  * @param now - clock for the marker timestamp; tests pin it.
- * @param onStaged - test seam: invoked after the tree is staged and before the claiming rename.
+ * @param onStaged - test seam: invoked after the tree is staged and before the claiming rename (create) or the swap (upgrade).
  * @returns the materialization report: action 'created' | 'upgraded' | 'present' | 'present-outdated' | 'claimed'.
  */
 export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now = () => new Date().toISOString(), onStaged }) {
@@ -170,30 +189,25 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
       }
     }
     // Byte-identical to an older shipped generation and never edited: the one
-    // safe in-place refresh. Overwrite the shipped files, remove anything the
-    // current generation no longer ships (at any depth), and re-stamp.
+    // safe refresh. Stage the new generation beside the target, move the old
+    // generation aside under a dot-prefixed name (invisible to discovery), move
+    // the stage in, then drop the old one. A crash between the two renames
+    // leaves no target and a dot-prefixed leftover, never a target whose hash
+    // disagrees with its marker - so the next boot creates cleanly instead of
+    // reporting a user edit that never happened.
     const sourceHash = hashTree(sourceDir)
-    copyTree(sourceDir, target)
-    const sourcePaths = new Set()
-    const collectSource = (current) => {
-      for (const entry of readdirSync(current).sort()) {
-        const path = join(current, entry)
-        sourcePaths.add(relative(sourceDir, path).split('\\').join('/'))
-        if (statSync(path).isDirectory()) collectSource(path)
-      }
+    const stage = stageTree(presetRoot, presetId, sourceDir, sourceHash, now)
+    const retired = join(presetRoot, '.' + presetId + '-previous-' + process.pid + '-' + Date.now())
+    try {
+      onStaged?.()
+      renameSync(target, retired)
+      renameSync(stage, target)
+    } catch (error) {
+      rmSync(stage, { recursive: true, force: true })
+      if (!existsSync(target) && existsSync(retired)) renameSync(retired, target)
+      throw error
     }
-    collectSource(sourceDir)
-    const pruneTarget = (current) => {
-      for (const entry of readdirSync(current).sort()) {
-        if (entry === MARKER_FILE) continue
-        const path = join(current, entry)
-        const rel = relative(target, path).split('\\').join('/')
-        if (!sourcePaths.has(rel)) rmSync(path, { recursive: true, force: true })
-        else if (statSync(path).isDirectory()) pruneTarget(path)
-      }
-    }
-    pruneTarget(target)
-    writeFileSync(markerPath, marker(presetId, sourceHash, now))
+    rmSync(retired, { recursive: true, force: true })
     return {
       action: 'upgraded',
       presetDir: target,
@@ -201,7 +215,7 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
       markerVersion: existing.version,
       sourceVersion: COMPOSITION_VERSION,
       sourceHash,
-      note: 'untouched generation-' + existing.version + ' materialization refreshed in place to generation-' + COMPOSITION_VERSION,
+      note: 'untouched generation-' + existing.version + ' materialization refreshed to generation-' + COMPOSITION_VERSION,
     }
   }
   const sourceHash = hashTree(sourceDir)
@@ -213,15 +227,7 @@ export function materializePreset({ home, sourceDir, presetId = PRESET_ID, now =
   // for the id are settled by the rename - the loser's rename fails against
   // the winner's completed directory and reports `claimed`. The dot-prefixed
   // staging name fails DSH's preset-id pattern, so discovery never lists it.
-  const stage = mkdtempSync(join(presetRoot, '.' + presetId + '-staging-'))
-  try {
-    copyTree(sourceDir, stage)
-    writeFileSync(join(stage, MARKER_FILE), marker(presetId, sourceHash, now))
-  } catch (error) {
-    // Nothing reached the target; drop the partial stage so nothing occupies the root.
-    rmSync(stage, { recursive: true, force: true })
-    throw error
-  }
+  const stage = stageTree(presetRoot, presetId, sourceDir, sourceHash, now)
   onStaged?.()
   try {
     renameSync(stage, target)

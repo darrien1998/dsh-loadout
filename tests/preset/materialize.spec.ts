@@ -1,8 +1,8 @@
 // Boot-time preset materialization semantics: create-if-absent under the
 // harness-home preset root, provenance marker, user-owned directories never
-// rewritten, an untouched older generation upgraded in place.
+// rewritten, an untouched older generation swapped for a staged new one.
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
@@ -36,7 +36,7 @@ function hashTree(dir: string): string {
     }
   }
   walk(dir)
-  for (const [path, content] of entries.sort(([left], [right]) => left.localeCompare(right))) {
+  for (const [path, content] of entries.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))) {
     hash.update(path); hash.update('\u0000'); hash.update(content); hash.update('\u0000')
   }
   return hash.digest('hex')
@@ -127,21 +127,58 @@ describe('Loadout preset materialization', () => {
     expect(again.markerVersion).toBe(COMPOSITION_VERSION)
   })
 
-  it('upgrades an untouched OLDER generation in place and re-stamps the marker', async () => {
+  /** A created materialization whose marker claims the previous generation: the exact state an untouched previous install leaves behind. */
+  async function olderGeneration(): Promise<{ home: string; first: ReturnType<typeof materializePreset>; previous: Marker }> {
     const home = await freshHome()
     const first = materializePreset({ home, sourceDir })
     expect(first.action).toBe('created')
-    // Rewrite the marker as an older generation with the same content hash: the
-    // exact state an untouched previous install leaves behind.
     const previous = JSON.parse(readFileSync(first.markerPath, 'utf8')) as Marker
     writeFileSync(first.markerPath, JSON.stringify({ ...previous, version: COMPOSITION_VERSION - 1 }, null, 2) + '\n')
-    const upgraded = materializePreset({ home, sourceDir })
+    return { home, first, previous }
+  }
+
+  /** The next generation of the shipped tree: one new file, one skill gone. */
+  async function nextGeneration(): Promise<string> {
+    const nextSource = await mkdtemp(join(tmpdir(), 'loadout-next-gen-'))
+    homes.push(nextSource)
+    cpSync(sourceDir, nextSource, { recursive: true })
+    writeFileSync(join(nextSource, 'CHANGES.md'), 'generation two\n')
+    rmSync(join(nextSource, 'skills', 'grill-me'), { recursive: true, force: true })
+    return nextSource
+  }
+
+  it('upgrades an untouched OLDER generation to a changed tree: added files appear, dropped skills vanish, nothing else remains', async () => {
+    const { home, first } = await olderGeneration()
+    const nextSource = await nextGeneration()
+    const upgraded = materializePreset({ home, sourceDir: nextSource })
     expect(upgraded.action).toBe('upgraded')
     expect(upgraded.markerVersion).toBe(COMPOSITION_VERSION - 1)
     expect(upgraded.sourceVersion).toBe(COMPOSITION_VERSION)
+    expect(existsSync(join(first.presetDir, 'CHANGES.md'))).toBe(true)
+    expect(existsSync(join(first.presetDir, 'skills', 'grill-me'))).toBe(false)
     const marker = JSON.parse(readFileSync(first.markerPath, 'utf8')) as Marker
     expect(marker.version).toBe(COMPOSITION_VERSION)
+    expect(hashTree(first.presetDir)).toBe(hashTree(nextSource))
     expect(hashTree(first.presetDir)).toBe(marker.sourceHash)
+    // No retired or staging directory is left beside the preset.
+    expect(readdirSync(join(home, '.agent-presets'))).toEqual([PRESET_ID])
+  })
+
+  it('a crash between staging and the swap leaves the old generation intact, so the next boot upgrades again', async () => {
+    const { home, first } = await olderGeneration()
+    const before = readFileSync(first.markerPath, 'utf8')
+    const nextSource = await nextGeneration()
+    expect(() => materializePreset({ home, sourceDir: nextSource, onStaged: () => { throw new Error('simulated crash after staging') } })).toThrow('simulated crash after staging')
+    // The target is untouched: its old marker is intact and its bytes still match it.
+    expect(existsSync(first.presetDir)).toBe(true)
+    expect(readFileSync(first.markerPath, 'utf8')).toBe(before)
+    expect(existsSync(join(first.presetDir, 'skills', 'grill-me'))).toBe(true)
+    expect(existsSync(join(first.presetDir, 'CHANGES.md'))).toBe(false)
+    expect(hashTree(first.presetDir)).toBe((JSON.parse(before) as Marker).sourceHash)
+    // No staging directory remains, and the next boot performs the upgrade cleanly.
+    expect(readdirSync(join(home, '.agent-presets'))).toEqual([PRESET_ID])
+    expect(materializePreset({ home, sourceDir: nextSource }).action).toBe('upgraded')
+    expect(hashTree(first.presetDir)).toBe(hashTree(nextSource))
   })
 
   it('never downgrades: a marker from a future generation is present', async () => {
