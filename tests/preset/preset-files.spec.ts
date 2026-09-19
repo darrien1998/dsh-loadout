@@ -9,10 +9,10 @@ import { scanRoot } from '@deepseek-ai/dsh-agent-presets'
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '../..')
 const harnessRoot = resolve(repoRoot, '../deepseek-harness-0.1.5')
-// 0.1.5's scanRoot resolves every row's plugin name from the harness base
-// (production passes ctx.baseUrl, where the installed harness lives). In the
-// pinned checkout that is the built CLI: every shipped plugin is installed
-// beside it.
+// Production passes ctx.baseUrl — the profile directory, which resolves
+// through a mirror of the install anchor's (apps/cli/package.json)
+// dependency closure. The worktree's apps/cli/ resolves the same packages
+// directly, and is stricter where they differ.
 const harnessBase = pathToFileURL(join(harnessRoot, 'apps', 'cli', '/')).href
 const PRESET_ID = 'loadout'
 // The containment pattern a preset id must match (packages/preset/agent-presets/src/preset.ts).

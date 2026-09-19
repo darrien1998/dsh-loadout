@@ -2374,3 +2374,5 @@ Not defects in what shipped; recorded so the next change starts from them rather
 - rc.6 port checklist: bump the `0.1.0-rc.5` peer in `packages/preset/package.json`, re-copy Standard, re-confirm `dshHomePath` provision and the `bundledSkillDir` / `includeDefaultRoots` semantics in `skill-filesystem`.
 
 **Upstream (DSH rc.5)**: `dsh plugin add` spawns pnpm through the shell without quoting, so a `DSH_HOME`/temp path containing a space breaks installation inside DSH itself.
+
+Superseded by 2026-09-20-dsh-loadout-v1.1-dsh-0.1.5.md: pin moved to 0.1.5-rc.2, one package, skills via customSkillDirs.

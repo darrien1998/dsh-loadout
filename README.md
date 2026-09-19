@@ -4,22 +4,29 @@ One install gives a DeepSeek Harness (DSH) deployment the `loadout` agent
 preset: the shipped Standard coding composition, a task-first persona, and
 five bundled engineering skills.
 
-- `@loadout/dsh` — the DSH bundle (`dsh plugin add` target). Inserts one
-  host-plane row.
-- `@loadout/dsh-preset` — the preset directory plus the boot-time
-  materialization row that copies it into `<dshHome>/.agent-presets/loadout`.
+```powershell
+dsh plugin --profile web add dsh-loadout
+dsh --profile web
+```
+
+The first boot materializes the preset into `<dshHome>/.agent-presets/loadout/`
+and it appears in the preset picker as **Loadout**. Built and tested against
+DSH 0.1.5-rc.2.
 
 ## What ships
 
-**Composition** — the pinned DSH Standard preset copied verbatim; the only
+**Composition** — DSH's own Standard preset copied verbatim; the only
 differences, machine-checked by `tests/preset/capability-parity.spec.ts`, are
-the persona text and one added `loadout-skills` row. Presentation is native.
+the persona text and the `skill-filesystem` row's preset-local skills root
+(the same wiring DSH's `cordis` preset uses for its own skills). No row is
+added, no row is reordered, presentation stays native.
 
-**Persona** (system prompt, order 0, under 1,200 characters) — an environment
-line (`Model: {{model}}. Working directory: {{cwd}}.`), skill routing, and
-seven standing rules. No identity claim, no competence adjectives: persona
-prompting does not improve objective-task accuracy and can degrade reasoning,
-so the standing text carries instruction only.
+**Persona** — under 1,200 characters, no identity claim, no competence
+adjectives: persona prompting does not improve objective-task accuracy and can
+degrade reasoning, so the standing text carries instruction only. The prefix
+(read first) states the environment — `Model: {{model}}. Working directory:
+{{cwd}}.` — and routes to the skills; the suffix (rendered after DSH's own tool
+guidance) carries seven standing rules.
 
 **Skills** — loaded on demand through the `skill` tool; the model sees only
 name + description until it loads one:
@@ -33,65 +40,58 @@ name + description until it loads one:
 | `verification-before-completion` | before any "done": run the proving command, read it, claim only what it shows |
 
 Every skill body is under 3,000 characters, carries at most one example, and
-uses DSH's own tool vocabulary; `tests/skills/skill-lint.spec.ts` enforces it.
+names no tool DSH does not have; `tests/skills/skill-lint.spec.ts` enforces it.
+A project skill (`.dsh/skills`, `.agents/skills`) with the same name overrides
+a bundled one; a bundled one overrides a same-named skill in your user roots.
 
-## Install
-
-The packages are not on npm yet, so install from packed tarballs. The bundle
-depends on the preset by workspace protocol; the profile's package manager
-cannot resolve that, so point a copy of the bundle at the preset tarball:
-
-```powershell
-Remove-Item dist -Recurse -Force -ErrorAction SilentlyContinue
-pnpm --filter @loadout/dsh-preset pack --pack-destination dist
-$preset = (Get-ChildItem dist\loadout-dsh-preset-*.tgz).FullName
-Copy-Item -Recurse packages\bundle dist\bundle
-(Get-Content dist\bundle\package.json) -replace 'workspace:\^', ('file:' + ($preset -replace '\\', '/')) | Set-Content -Encoding utf8 dist\bundle\package.json
-pnpm --dir dist\bundle pack --pack-destination ..
-$bundle = (Get-ChildItem dist\loadout-dsh-0.1.0.tgz).FullName
-dsh plugin --profile web add $preset $bundle
-dsh --profile web
-```
-
-The first boot materializes the preset into `<dshHome>/.agent-presets/loadout/`
-and it appears in the preset picker as **Loadout**.
+## Editing and upgrading
 
 The materialized directory is yours: edit it freely. An edited directory is
 never overwritten by a later version (the boot log reports `present-outdated`);
-an untouched one is upgraded by swapping in the new generation whole (never
-file by file), so a crash mid-upgrade cannot leave a half-updated preset.
+an untouched one is upgraded by swapping in the new generation whole, so a
+crash mid-upgrade cannot leave a half-updated preset. The preset lands in the
+profile-independent `<dshHome>/.agent-presets`, so installing on `web` makes
+it available to every profile.
 
 ## Remove
 
-Two stages, on purpose (rc.5 gives removed bundles no teardown hook, and
+Two stages, on purpose (DSH gives removed bundles no teardown hook, and
 automatic deletion would destroy user edits):
 
 ```powershell
-dsh plugin --profile web remove @loadout/dsh @loadout/dsh-preset
+dsh plugin --profile web remove dsh-loadout
 ```
 
 then delete the preset from the Web UI, or through `ctx.agentPresets.remove('loadout')`.
 
 ## Development
 
-Requires the pinned DSH checkout, built, as the sibling directory
-`../deepseek-harness` (commit `47f943859bef60e4160492346772ded9b24f765a`,
-0.1.0-rc.5).
+Requires a built DSH checkout at tag `dsh-v0.1.5-rc.2` (commit
+`fb2c4b9e698e30edb738bca4cf0618587db7d203`) as the sibling directory
+`../deepseek-harness-0.1.5`.
 
 ```powershell
 pnpm install
 pnpm run typecheck
 pnpm run lint
 pnpm test
-$env:DSH_SOURCE_DIR = (Resolve-Path ..\deepseek-harness).Path
+$env:DSH_SOURCE_DIR = (Resolve-Path ..\deepseek-harness-0.1.5).Path
 pnpm run test:dsh-smoke
 ```
 
-`test:dsh-smoke` installs the bundle into a temporary DSH home on the real
-web profile, boots it, reads the bundled skills through the skill registry in
-the preset's scope, and removes everything afterward.
+`test:dsh-smoke` packs the package, installs it into a temporary DSH home on
+the real web profile, boots it without opening a browser, reads the bundled
+skills through the skill registry in the preset's scope, and removes
+everything afterward.
 
-Known limitation (upstream): on Windows, `dsh plugin add` in rc.5 spawns pnpm
-through the shell without quoting, so a temp directory whose path contains a
-space breaks the install step inside DSH itself. Run the smoke with a
-space-free `%TEMP%`. The smoke's own pnpm calls quote their arguments.
+To install from a checkout instead of npm:
+
+```powershell
+Remove-Item dist -Recurse -Force -ErrorAction SilentlyContinue
+pnpm --filter dsh-loadout pack --pack-destination dist
+dsh plugin --profile web add (Get-ChildItem dist\dsh-loadout-*.tgz).FullName
+```
+
+Known limitation (upstream): on Windows, `dsh plugin add` spawns pnpm through
+the shell without quoting, so a `DSH_HOME` or temp path containing a space
+breaks the install step inside DSH itself. Use paths without spaces.
