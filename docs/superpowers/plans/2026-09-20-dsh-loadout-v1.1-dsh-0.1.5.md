@@ -855,7 +855,7 @@ Run: `npm whoami` (a username), `npm view dsh-loadout version` (expected: E404 �
 - [ ] **Step 2: Dry-run the tarball contents**
 
 Run: `pnpm --filter dsh-loadout pack --pack-destination dist` then list the tarball: `tar -tzf dist/dsh-loadout-0.1.0.tgz`
-Expected entries: `package/package.json`, `package/cordis.patch.yml`, `package/materialize.mjs`, `package/LICENSE`, `package/preset/loadout/agent.cordis.yml`, `package/preset/loadout/preset.yml`, five `package/preset/loadout/skills/<name>/SKILL.md` — nothing else (no `.d.mts`, no tests).
+Expected entries: `package/package.json`, `package/README.md`, `package/cordis.patch.yml`, `package/materialize.mjs`, `package/LICENSE`, `package/preset/loadout/agent.cordis.yml`, `package/preset/loadout/preset.yml`, five `package/preset/loadout/skills/<name>/SKILL.md` — nothing else (no `.d.mts`, no tests).
 
 - [ ] **Step 3: Publish**
 
@@ -889,3 +889,14 @@ git push origin main --follow-tags
 **Placeholder scan.** Every file has content or an exact edit; every run step has an expected outcome; the two known risks (peer resolution in the profile; `scanRoot` order) have explicit fallbacks that require the controller's go-ahead rather than silent workarounds.
 
 **Type consistency.** `analyzeParity`'s report shape is unchanged (`standardTopLevelIds`/`targetTopLevelIds` from v1); `loadComposition` unchanged; `SKILLS` in the smoke and `BUNDLED_SKILLS` in `tests/contract.ts` carry the same five names; `presetSourceDir()` still resolves `preset/loadout` beside `materialize.mjs` after the move.
+
+---
+
+## Amendments during execution (2026-09-20)
+
+- Task 3: `pnpm --filter dsh-loadout` matched the private workspace root too (same name) — the smoke filters by path; Task 4 renamed the root to `dsh-loadout-workspace`. 0.1.5's dump-config prints the row name unquoted; the smoke's regex follows.
+- Task 2: 0.1.5's `scanRoot(root, harnessBase)` requires a base; the tests pass the worktree's `apps/cli/`, which resolves the same packages the profile mirror does and is stricter where they differ.
+- Final review fix wave: the package ships its own `README.md` (byte-identical to the root README, test-enforced); `COMPOSITION_VERSION` bumped to 2 (generation 1 = the rc.5 composition, never published); the peer pin is checked against the pinned checkout's `home-paths` version; `repository.directory` declared; README wording (prefix placement, `present` row, live skill edits, the narrowed upstream limitation).
+- Task 6 (added after the final review): the persona suffix grows from seven to nine standing rules — the model-neutral subset of Anthropic's Claude Fable 5.1 prompting guidance (act when information suffices; a described problem wants an assessment; validate at boundaries; surgical edits; faithful failure/skip reporting; shorten by selection; never end a turn on a promise). `PERSONA_MAX_CHARACTERS` 1,200 → 1,800 (the nine rules total 1,666 characters; the first estimate of 1,500 was a miscount). Unattended-only and DSH-specific guidance (sub-agents, memory files, "the user is not watching") deliberately left out.
+- Task 5 (publish, tag, push) deferred to the next session (npm registry returned 503 on the login attempt).
+
