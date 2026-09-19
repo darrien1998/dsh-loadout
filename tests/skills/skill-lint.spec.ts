@@ -24,12 +24,16 @@ interface ParsedSkill {
   readonly body: string
 }
 
-function parseSkill(dir: string): ParsedSkill {
-  const text = readFileSync(join(skillsRoot, dir, 'SKILL.md'), 'utf8')
-  const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text)
-  if (match === null) throw new Error(dir + ': SKILL.md must open with a YAML frontmatter block')
+/** Parse one SKILL.md body; tolerant of CRLF so a checkout without .gitattributes still lints. */
+export function parseSkillText(text: string, label: string): ParsedSkill {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(text)
+  if (match === null) throw new Error(label + ': SKILL.md must open with a YAML frontmatter block')
   const frontmatter = load(match[1]!) as Record<string, unknown>
-  return { name: String(frontmatter.name), description: String(frontmatter.description), body: match[2]! }
+  return { name: String(frontmatter.name), description: String(frontmatter.description), body: match[2]!.replace(/\r\n/g, '\n') }
+}
+
+function parseSkill(dir: string): ParsedSkill {
+  return parseSkillText(readFileSync(join(skillsRoot, dir, 'SKILL.md'), 'utf8'), dir)
 }
 
 const present = existsSync(skillsRoot) ? readdirSync(skillsRoot).sort() : []
@@ -77,5 +81,11 @@ describe('Loadout bundled skills', () => {
 
   it('ships exactly the bundled set the persona names', () => {
     expect(present).toEqual([...BUNDLED_SKILLS].sort())
+  })
+
+  it('parses a CRLF checkout the same as an LF one', () => {
+    const lf = '---\nname: sample\ndescription: Use when sampling.\n---\n# Sample\n\nBody line.\n'
+    const crlf = lf.replace(/\n/g, '\r\n')
+    expect(parseSkillText(crlf, 'sample')).toEqual(parseSkillText(lf, 'sample'))
   })
 })
