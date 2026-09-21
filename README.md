@@ -35,7 +35,7 @@ name + description until it loads one:
 | skill | trigger |
 |---|---|
 | `brainstorming` | when design choices materially affect the result: inspect context, resolve user-owned choices, recommend a small design |
-| `grill-me` | the user proposes a plan and wants it examined: decision tree, one question per message, each with a recommendation |
+| `grill-me` | before development when requirements are unclear: inspect context, ask one key decision at a time, then summarize the agreed requirements |
 | `systematic-debugging` | any bug or failing test: root cause first, one hypothesis at a time, failing test before the fix |
 | `test-driven-development` | when a regression test adds evidence: red, verify red, green, verify green, refactor |
 | `verification-before-completion` | before any "done": run the proving command, read it, claim only what it shows |

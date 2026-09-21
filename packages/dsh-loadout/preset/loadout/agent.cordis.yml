@@ -39,7 +39,7 @@
       Model: {{model}}. Working directory: {{cwd}}.
 
       Check the skill catalog and load a relevant skill with the `skill` tool when useful.
-      Unclear or design-heavy work: brainstorming. A plan the user wants challenged: grill-me. Bug or failing test: systematic-debugging.
+      Development request with unclear requirements: grill-me. Design-heavy work after requirements are clear: brainstorming. Bug or failing test: systematic-debugging.
       Behavior needing a regression test: test-driven-development. Before claiming done: verification-before-completion.
     suffix: |-
       Standing rules:
