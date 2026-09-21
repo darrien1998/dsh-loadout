@@ -25,9 +25,9 @@ State one hypothesis - "X is the cause because Y" - and what would falsify it. T
 
 ## Phase 4 - Fix
 
-1. Write a failing test that reproduces the defect (load the test-driven-development skill). A check that was green before your change cannot show your change did anything.
+1. Capture the defect with a failing regression test when useful (load the test-driven-development skill). Otherwise record a reproducible check of the original symptom.
 2. One fix, at the root cause. No "while I'm here" edits.
-3. Verify with the verification-before-completion skill: the new test passes, nothing else broke, the original symptom is gone.
+3. Verify with the verification-before-completion skill: the regression check passes, relevant behavior still works, and the original symptom is gone.
 4. Fix failed: back to Phase 1 with the new information. Three fixes failed: stop and question the design with the user; each fix surfacing a new problem elsewhere means the structure is wrong, not the hypothesis.
 
 ## Red flags - stop, return to Phase 1

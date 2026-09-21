@@ -21,12 +21,12 @@ the persona text and the `skill-filesystem` row's preset-local skills root
 (the same wiring DSH's `cordis` preset uses for its own skills). No row is
 added and no row is reordered; the `present` row is Standard's own.
 
-**Persona** — under 1,200 characters, no identity claim, no competence
+**Persona** — under 1,300 characters, no identity claim, no competence
 adjectives: persona prompting does not improve objective-task accuracy and can
 degrade reasoning, so the standing text carries instruction only. The prefix
 (the first section after DSH's own identity line) states the environment —
 `Model: {{model}}. Working directory: {{cwd}}.` — and routes to the skills;
-the suffix (rendered after DSH's own tool guidance) carries seven standing
+the suffix (rendered after DSH's own tool guidance) carries six standing
 rules.
 
 **Skills** — loaded on demand through the `skill` tool; the model sees only
@@ -34,10 +34,10 @@ name + description until it loads one:
 
 | skill | trigger |
 |---|---|
-| `brainstorming` | before creative work: turn a request into an approved design, one question at a time |
+| `brainstorming` | when design choices materially affect the result: inspect context, resolve user-owned choices, recommend a small design |
 | `grill-me` | the user proposes a plan and wants it examined: decision tree, one question per message, each with a recommendation |
 | `systematic-debugging` | any bug or failing test: root cause first, one hypothesis at a time, failing test before the fix |
-| `test-driven-development` | any feature or fix: red, verify red, green, verify green, refactor |
+| `test-driven-development` | when a regression test adds evidence: red, verify red, green, verify green, refactor |
 | `verification-before-completion` | before any "done": run the proving command, read it, claim only what it shows |
 
 Every skill body is under 3,000 characters, carries at most one example, and
