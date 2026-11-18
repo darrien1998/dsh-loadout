@@ -38,7 +38,8 @@ function execute(command: string, args: readonly string[], cwd: string, env: Nod
   const shell = process.platform === 'win32' && command.toLowerCase().endsWith('.cmd')
   const spawnArgs = shell ? args.map(argument => (/\s/.test(argument) ? '"' + argument + '"' : argument)) : [...args]
   return new Promise((resolveResult, reject) => {
-    const child = spawn(command, spawnArgs, {
+    const executable = shell && /\s/.test(command) ? '"' + command + '"' : command
+    const child = spawn(executable, spawnArgs, {
       cwd,
       env,
       shell,
@@ -51,6 +52,12 @@ function execute(command: string, args: readonly string[], cwd: string, env: Nod
     child.once('error', error => { clearTimeout(timeout); reject(error) })
     child.once('close', code => { clearTimeout(timeout); resolveResult({ code: code ?? 1, output }) })
   })
+}
+
+/** LOADOUT_DSH selects an installed Desktop carrier for cross-version verification. */
+function executeDsh(args: readonly string[], cwd: string, env: NodeJS.ProcessEnv): Promise<CommandResult> {
+  const carrier = process.env.LOADOUT_DSH
+  return execute(carrier ?? process.execPath, carrier ? args : [dshBin, ...args], cwd, env)
 }
 
 function expectSuccess(label: string, result: CommandResult): void {
@@ -166,11 +173,11 @@ try {
   // Filter by path, not name: a directory filter can only ever match this
   // package, whatever the workspace root is called.
   expectSuccess('package pack', await execute(pnpm, ['--filter', './packages/dsh-loadout', 'pack', '--pack-destination', packDirectory], projectRoot, env))
-  const packageTarball = await tarball(packDirectory, 'dsh-loadout-0.2.0')
+  const packageTarball = await tarball(packDirectory, 'dsh-loadout-0.2.1')
 
-  expectSuccess('dsh web plugin add', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'add', packageTarball], dshRoot, env))
+  expectSuccess('dsh web plugin add', await executeDsh(['plugin', '--profile', profile, 'add', packageTarball], dshRoot, env))
 
-  const dump = await execute(process.execPath, [dshBin, '--profile', profile, '--dump-config'], dshRoot, env)
+  const dump = await executeDsh(['--profile', profile, '--dump-config'], dshRoot, env)
   expectSuccess('dsh web dump-config after add', dump)
   assert.match(dump.output, /id: preset-loadout/)
   assert.match(dump.output, /name:.*dsh-agent-preset/)
@@ -178,16 +185,16 @@ try {
 
   const profileDirectory = join(dshHome, 'profiles', profile)
   await prepareVerifyDriver(profileDirectory, dshHome)
-  const boot = await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], dshRoot, env)
+  const boot = await executeDsh(['--profile', profile, '--port', '0', '--no-open'], dshRoot, env)
   expectSuccess('dsh web profile boot with Loadout', boot)
   assert.match(boot.output, /\[loadout-smoke\] roster ok/)
 
-  expectSuccess('dsh web plugin remove', await execute(process.execPath, [dshBin, 'plugin', '--profile', profile, 'remove', 'dsh-loadout'], dshRoot, env))
+  expectSuccess('dsh web plugin remove', await executeDsh(['plugin', '--profile', profile, 'remove', 'dsh-loadout'], dshRoot, env))
   await preparePostRemoveDriver(profileDirectory)
-  expectSuccess('dsh web profile boot after removal', await execute(process.execPath, [dshBin, '--profile', profile, '--port', '0', '--no-open'], dshRoot, env))
+  expectSuccess('dsh web profile boot after removal', await executeDsh(['--profile', profile, '--port', '0', '--no-open'], dshRoot, env))
 
   await writeFile(join(profileDirectory, 'cordis.patch.yml'), '# Your patch layer for this dsh profile, applied after every bundle layer:\n[]\n')
-  const afterRemove = await execute(process.execPath, [dshBin, '--profile', profile, '--dump-config'], dshRoot, env)
+  const afterRemove = await executeDsh(['--profile', profile, '--dump-config'], dshRoot, env)
   expectSuccess('dsh web dump-config after remove', afterRemove)
   assert.doesNotMatch(afterRemove.output, /loadout/)
   assert.match(afterRemove.output, /id: agent-preset-registry/)

@@ -48,7 +48,7 @@ importers:
   packages/dsh-loadout:
     dependencies:
       '@deepseek-ai/dsh-agent-preset':
-        specifier: 0.2.2-rc.4
+        specifier: 0.2.2-rc.3 || 0.2.2-rc.4
         version: 0.2.2-rc.4(@deepseek-ai/cordis-plugin-loader@1.1.0)(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-agent-preset-registry@0.2.2-rc.4(0d2f1513e131fe2ab0181d80e853e4ad))
 
 packages:

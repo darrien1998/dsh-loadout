@@ -4,10 +4,10 @@ A DeepSeek Harness bundle that adds **Loadout**: the current Standard coding com
 
 ## Compatibility and installation
 
-Version 0.2.0 targets **DSH 0.2.2-rc.4**, the newest official release checked on 2026-11-18 (a prerelease). The npm `latest` tag still points to 0.2.2-rc.1; install the explicit version when testing this bundle. Upstream source: tag `dsh-v0.2.2-rc.4`, commit `3f321d32bfe382212a8ed8785c1d47a5a300aa23`.
+Version 0.2.1 supports **DSH 0.2.2-rc.3 and 0.2.2-rc.4**, including the current Windows Desktop release. It uses **DSH 0.2.2-rc.4** as its Standard composition baseline, the newest official release checked on 2026-11-18 (a prerelease). The npm `latest` tag still points to 0.2.2-rc.1; install the explicit version when testing this bundle. Upstream source: tag `dsh-v0.2.2-rc.4`, commit `3f321d32bfe382212a8ed8785c1d47a5a300aa23`.
 
 ```powershell
-npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add https://github.com/darrien1998/dsh-loadout/releases/download/v0.2.0/dsh-loadout-0.2.0.tgz
+npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add https://github.com/darrien1998/dsh-loadout/releases/download/v0.2.1/dsh-loadout-0.2.1.tgz
 npx @deepseek-ai/dsh@0.2.2-rc.4 web
 ```
 
@@ -51,10 +51,10 @@ pnpm run lint
 pnpm test
 pnpm run test:dsh-smoke
 pnpm --filter dsh-loadout pack --pack-destination dist
-npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add (Resolve-Path dist/dsh-loadout-0.2.0.tgz).Path
+npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add (Resolve-Path dist/dsh-loadout-0.2.1.tgz).Path
 ```
 
-The smoke test packs and installs the actual tarball into a temporary DSH home, boots the real web profile without opening a browser or making model requests, verifies preset activation, skill isolation and Stop Slop loading, then removes the bundle and checks the declaration disappears. It uses the pinned installed CLI by default; `DSH_SOURCE_DIR` may select an equivalent built source checkout.
+The smoke test packs and installs the actual tarball into a temporary DSH home, boots the real web profile without opening a browser or making model requests, verifies preset activation, skill isolation and Stop Slop loading, then removes the bundle and checks the declaration disappears. It uses the pinned installed CLI by default; `DSH_SOURCE_DIR` may select an equivalent built source checkout. `LOADOUT_DSH` may select the installed Desktop CLI carrier for the rc.3 smoke.
 
 ## Remove
 

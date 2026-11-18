@@ -1,6 +1,6 @@
 {
   "name": "dsh-loadout",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness 0.2.2-rc.4 Standard preset with task-first instructions, Stop Slop writing rules, and six bundled skills",
   "license": "MIT",
   "type": "module",
@@ -33,7 +33,7 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-agent-preset": "0.2.2-rc.4"
+    "@deepseek-ai/dsh-agent-preset": "0.2.2-rc.3 || 0.2.2-rc.4"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-agent-preset": {
