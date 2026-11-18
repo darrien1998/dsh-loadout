@@ -1,70 +1,29 @@
-// The package contract: dsh-loadout is a DSH bundle whose patch inserts exactly
-// its own materialize row, and it ships the preset with the patch.
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { load } from 'js-yaml'
-import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const here = dirname(fileURLToPath(import.meta.url))
-const packageDir = resolve(here, '../../packages/dsh-loadout')
-
-interface Manifest {
-  name: string
-  version: string
-  type: string
-  license: string
-  files: string[]
-  exports: Record<string, string>
-  dsh: { bundle: { patch: string } }
-  peerDependencies: Record<string, string>
-  peerDependenciesMeta: Record<string, { optional?: boolean }>
-  repository: { type: string; url: string; directory: string }
+const packageDir = resolve('packages/dsh-loadout')
+const manifest = JSON.parse(await readFile(resolve(packageDir, 'package.json'), 'utf8')) as {
+  version: string; files: string[]; exports: Record<string, string>;
+  dsh: { bundle: { patch: string } }; peerDependencies: Record<string, string>;
 }
 
 describe('dsh-loadout package', () => {
-  it('is one unscoped bundle package that ships the patch, the row, and the preset', async () => {
-    const manifest = JSON.parse(await readFile(join(packageDir, 'package.json'), 'utf8')) as Manifest
-    expect(manifest.name).toBe('dsh-loadout')
-    expect(manifest.version).toBe('0.1.0')
-    expect(manifest.type).toBe('module')
-    expect(manifest.license).toBe('MIT')
+  it('ships a native preset bundle and its notices without the retired materializer', () => {
+    expect(manifest.version).toBe('0.2.0')
     expect(manifest.dsh.bundle.patch).toBe('./cordis.patch.yml')
-    expect(manifest.exports).toEqual({
-      './materialize': './materialize.mjs',
-      './cordis.patch.yml': './cordis.patch.yml',
-      './package.json': './package.json',
-    })
-    expect(manifest.files).toEqual(['cordis.patch.yml', 'materialize.mjs', 'preset', 'LICENSE', 'README.md'])
-    expect(manifest.repository).toEqual({ type: 'git', url: 'git+https://github.com/darrien1998/dsh-loadout.git', directory: 'packages/dsh-loadout' })
-    expect(Object.keys(manifest.peerDependencies)).toEqual(['@deepseek-ai/dsh-home-paths'])
-    expect(manifest.peerDependenciesMeta['@deepseek-ai/dsh-home-paths']?.optional).toBe(true)
+    expect(manifest.exports).toEqual({ './cordis.patch.yml': './cordis.patch.yml', './package.json': './package.json' })
+    expect(manifest.peerDependencies).toEqual({ '@deepseek-ai/dsh-agent-preset': '0.2.2-rc.4' })
+    for (const file of manifest.files) expect(existsSync(resolve(packageDir, file)), file).toBe(true)
   })
 
-  it('the patch inserts exactly the materialize row of this package', async () => {
-    const patch = load(await readFile(join(packageDir, 'cordis.patch.yml'), 'utf8'), { schema: entryListSchema })
-    expect(patch).toEqual([{ insert: [{ id: 'loadout-preset', name: 'dsh-loadout/materialize' }] }])
+  it('ships identical root and package documentation', async () => {
+    expect(await readFile(resolve(packageDir, 'README.md'), 'utf8')).toBe(await readFile(resolve('README.md'), 'utf8'))
   })
 
-  it('every shipped file exists', () => {
-    for (const file of ['cordis.patch.yml', 'materialize.mjs', 'LICENSE', 'README.md', 'preset/loadout/agent.cordis.yml', 'preset/loadout/preset.yml']) {
-      expect(existsSync(join(packageDir, file)), file).toBe(true)
-    }
-  })
-
-  it('the package README is the repository README, byte for byte', async () => {
-    const [packageReadme, rootReadme] = await Promise.all([
-      readFile(join(packageDir, 'README.md'), 'utf8'),
-      readFile(resolve(packageDir, '../../README.md'), 'utf8'),
-    ])
-    expect(packageReadme).toBe(rootReadme)
-  })
-
-  it('pins the peer to the exact DSH version this repository is built against', async () => {
-    const manifest = JSON.parse(await readFile(join(packageDir, 'package.json'), 'utf8')) as Manifest
-    const homePaths = JSON.parse(await readFile(resolve(packageDir, '../../../deepseek-harness-0.1.5/packages/util/home-paths/package.json'), 'utf8')) as { version: string }
-    expect(manifest.peerDependencies['@deepseek-ai/dsh-home-paths']).toBe(homePaths.version)
+  it('retains the Stop Slop attribution, source revision, and MIT permission notice', async () => {
+    const notice = await readFile(resolve(packageDir, 'THIRD_PARTY_NOTICES.md'), 'utf8')
+    for (const text of ['hardikpandya/stop-slop', '8da1f030185bdfe8471220585162991eaeb970e9', 'Copyright (c) 2025 Hardik Pandya', 'Permission is hereby granted']) expect(notice).toContain(text)
   })
 })

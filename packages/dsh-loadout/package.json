@@ -1,7 +1,7 @@
 {
   "name": "dsh-loadout",
-  "version": "0.1.0",
-  "description": "One install gives DeepSeek Harness the loadout agent preset: DSH Standard, a task-first persona, and five bundled engineering skills",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness 0.2.2-rc.4 Standard preset with task-first instructions, Stop Slop writing rules, and six bundled skills",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -17,15 +17,14 @@
     "skills"
   ],
   "exports": {
-    "./materialize": "./materialize.mjs",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "files": [
     "cordis.patch.yml",
-    "materialize.mjs",
     "preset",
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
     "README.md"
   ],
   "dsh": {
@@ -34,10 +33,10 @@
     }
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-home-paths": "0.1.5-rc.2"
+    "@deepseek-ai/dsh-agent-preset": "0.2.2-rc.4"
   },
   "peerDependenciesMeta": {
-    "@deepseek-ai/dsh-home-paths": {
+    "@deepseek-ai/dsh-agent-preset": {
       "optional": true
     }
   }

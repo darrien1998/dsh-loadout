@@ -1,12 +1,13 @@
 // The shipped-content contract shared by the persona and skill lint suites.
 
-/** The five skills the Loadout preset ships, in catalog order. */
+/** The six skills the Loadout preset ships, in catalog order. */
 export const BUNDLED_SKILLS: readonly string[] = Object.freeze([
   'brainstorming',
   'grill-me',
   'systematic-debugging',
   'test-driven-development',
   'verification-before-completion',
+  'stop-slop',
 ])
 
 /**
@@ -36,7 +37,7 @@ export const ROLE_PLAY_TOKENS: readonly RegExp[] = Object.freeze([
 ])
 
 /** Standing persona text is paid on every request; keep it small. */
-export const PERSONA_MAX_CHARACTERS = 1_300
+export const PERSONA_MAX_CHARACTERS = 2_600
 
 /** DSH shows the model only name + description; the description carries the trigger. */
 export const SKILL_DESCRIPTION_MAX_CHARACTERS = 300

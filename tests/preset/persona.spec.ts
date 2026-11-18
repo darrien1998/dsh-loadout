@@ -7,7 +7,7 @@ import { loadComposition } from './parity.ts'
 import { BANNED_TOKENS, BUNDLED_SKILLS, PERSONA_MAX_CHARACTERS, ROLE_PLAY_TOKENS } from '../contract.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const loadoutPath = resolve(here, '../../packages/dsh-loadout/preset/loadout/agent.cordis.yml')
+const loadoutPath = resolve(here, '../../packages/dsh-loadout/cordis.patch.yml')
 
 interface Persona { readonly prefix: string; readonly suffix: string }
 
@@ -21,7 +21,7 @@ async function persona(): Promise<Persona> {
 
 describe('Loadout persona', () => {
   it('opens with the environment statement and nothing else on that line', async () => {
-    expect((await persona()).prefix.split('\n')[0]).toBe('Model: {{model}}. Working directory: {{cwd}}.')
+    expect((await persona()).prefix.split('\n')[0]).toBe('Model: {{model}}.')
   })
 
   it('stays within the standing budget across prefix and suffix', async () => {
@@ -29,10 +29,10 @@ describe('Loadout persona', () => {
     expect(prefix.length + suffix.length).toBeLessThanOrEqual(PERSONA_MAX_CHARACTERS)
   })
 
-  it('references only the two prompt variables the agent loop registers', async () => {
+  it('references only the model prompt variable supported by the current agent loop', async () => {
     const { prefix, suffix } = await persona()
     const refs = [...(prefix + '\n' + suffix).matchAll(/\{\{([^{}]*)\}\}/g)].map(match => match[1])
-    expect(new Set(refs)).toEqual(new Set(['model', 'cwd']))
+    expect(new Set(refs)).toEqual(new Set(['model']))
   })
 
   it('routes to every bundled skill in the prefix and keeps the rules in the suffix', async () => {
@@ -41,10 +41,15 @@ describe('Loadout persona', () => {
     expect(prefix).toContain('`skill` tool')
     expect(suffix.split('\n')[0]).toBe('Standing rules:')
     expect(suffix).toContain('todo_write')
-    expect(suffix.split('\n').filter(line => line.startsWith('- ')).length).toBe(6)
+    expect(suffix.split('Writing rules')[0]!.split('\n').filter(line => line.startsWith('- ')).length).toBe(6)
     for (const rule of ['assessment requests', 'finish authorized work', 'user-owned decisions', 'progress updates', 'smallest coherent patch', 'fresh, relevant evidence', 'Do not end on a promise']) {
       expect(suffix, rule).toContain(rule)
     }
+  })
+
+  it('keeps the Stop Slop core rules active without loading a skill', async () => {
+    const { suffix } = await persona()
+    for (const rule of ['Cut filler', 'formulaic contrasts', 'active voice', 'Name specifics', 'reader directly', 'Vary sentence', 'Trust the reader', 'pull-quotes', 'across languages', 'technical accuracy']) expect(suffix).toContain(rule)
   })
 
   it('carries no vocabulary from another harness and no role-play', async () => {

@@ -10,15 +10,12 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "baseUrl": ".",
     "ignoreDeprecations": "6.0",
-    "types": ["node"],
-    "paths": {
-      "@deepseek-ai/dsh-agent-presets": ["../deepseek-harness-0.1.5/packages/preset/agent-presets/lib/types/index.d.ts"],
-      "@deepseek-ai/dsh-home-paths": ["../deepseek-harness-0.1.5/packages/util/home-paths/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-loader": ["../deepseek-harness-0.1.5/vendor/loader/lib/types/index.d.ts"],
-      "@deepseek-ai/cordis-plugin-include": ["../deepseek-harness-0.1.5/vendor/include/lib/types/index.d.ts"]
-    }
+    "types": [
+      "node"
+    ]
   },
-  "include": ["tests/**/*.ts", "packages/*/*.d.mts"]
+  "include": [
+    "tests/**/*.ts"
+  ]
 }

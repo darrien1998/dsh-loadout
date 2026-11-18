@@ -1,3 +1,2 @@
-# Every text file is LF in the index and in every working tree: the skill
-# lint parses frontmatter byte-wise and hashTree fingerprints preset bytes.
+# Normalize bundled YAML and skill frontmatter in every checkout.
 * text=auto eol=lf

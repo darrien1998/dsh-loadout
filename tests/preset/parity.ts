@@ -8,8 +8,8 @@
 // every row PRESENT / INTENTIONALLY DIFFERENT / ADDED / MISSING. A row is
 // PRESENT only when its whole shape (every key but `config`: name, disabled,
 // group, isolate, anything else) and its config match; two rows may differ:
-// the persona (its config is exactly `prefix` and `suffix`) and
-// `skill-filesystem` (its config is exactly the preset-local skills root); no
+// the persona (Standard prefix replaced; Loadout suffix added) and
+// `skill-filesystem` (its config is the upstream roots plus the package-local skills root); no
 // row may be added and the top-level order is Standard's. The parity tests
 // fail the moment upstream Standard gains a row this copy lacks, or the copy
 // drifts in any other key.
@@ -92,7 +92,8 @@ function same(left: unknown, right: unknown): boolean {
 
 async function readComposition(path: string): Promise<Composition> {
   const text = await readFile(path, 'utf8')
-  const rows = load(text, { schema: entryListSchema })
+  const patch = load(text, { schema: entryListSchema }) as { insert: { config: { plugins: unknown } }[] }[]
+  const rows = patch[0]!.insert[0]!.config.plugins
   return { topLevelIds: topLevelIds(rows), rows: flattenRows(rows) }
 }
 
@@ -100,8 +101,8 @@ export async function loadComposition(path: string): Promise<CompositionRow[]> {
   return [...(await readComposition(path)).rows.values()]
 }
 
-/** The one !!js expression the skill root may carry: the preset's own skills/ directory, resolved from the composition's baseUrl. */
-const SKILL_ROOT_EXPRESSION = "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+/** The one !!js expression the skill root may carry: the packaged skill directory, resolved through the profile dependency closure. */
+const SKILL_ROOT_EXPRESSION = "process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('dsh-loadout/package.json')), 'preset/loadout/skills')"
 
 /** Rows that may differ from Standard, each with the exact delta it may carry. */
 const INTENTIONAL: Readonly<Record<string, { readonly note: string; readonly allowed: (source: CompositionRow, copy: CompositionRow) => boolean }>> = {
@@ -109,17 +110,17 @@ const INTENTIONAL: Readonly<Record<string, { readonly note: string; readonly all
     note: 'Loadout persona prefix and suffix; every other key identical',
     allowed: (source, copy) => {
       const keys = (row: CompositionRow): string[] => Object.keys((row.config ?? {}) as Record<string, unknown>).sort()
-      return same(keys(source), ['prefix', 'suffix']) && same(keys(copy), ['prefix', 'suffix'])
+      return same(keys(source), ['prefix']) && same(keys(copy), ['prefix', 'suffix'])
     },
   },
   'skill-filesystem': {
     note: 'the preset-local skills root, the way the shipped cordis preset wires it',
     allowed: (source, copy) => {
-      if (source.config !== undefined) return false
+      const sourceConfig = source.config as { customSkillDirs: unknown[] }
       const config = copy.config as { customSkillDirs?: unknown } | undefined
       if (config === undefined || !same(Object.keys(config), ['customSkillDirs'])) return false
       const dirs = config.customSkillDirs
-      return Array.isArray(dirs) && dirs.length === 1 && same(dirs[0], { __jsExpr: SKILL_ROOT_EXPRESSION })
+      return Array.isArray(dirs) && same(dirs, [...sourceConfig.customSkillDirs, { __jsExpr: SKILL_ROOT_EXPRESSION }])
     },
   },
 }
