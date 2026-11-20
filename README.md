@@ -1,48 +1,48 @@
 # dsh-loadout
 
-A DeepSeek Harness bundle that adds **Loadout**: the current Standard coding composition, task-first instructions, Stop Slop writing rules in the system prompt, and six bundled skills.
+Loadout adds task-focused prompts, the Stop Slop writing rules, and six engineering skills to the DeepSeek Harness profile you already use.
 
-## Compatibility and installation
+## Install and switch
 
-Version 0.2.1 supports **DSH 0.2.2-rc.3 and 0.2.2-rc.4**, including the current Windows Desktop release. It uses **DSH 0.2.2-rc.4** as its Standard composition baseline, the newest official release checked on 2026-11-18 (a prerelease). The npm `latest` tag still points to 0.2.2-rc.1; install the explicit version when testing this bundle. Upstream source: tag `dsh-v0.2.2-rc.4`, commit `3f321d32bfe382212a8ed8785c1d47a5a300aa23`.
+Version 0.3.0 supports **DSH 0.2.2-rc.3 and 0.2.2-rc.4**, including the Windows Desktop runtime on rc.3. Download the `dsh-loadout` artifact from a successful [CI run](https://github.com/darrien1998/dsh-loadout/actions/workflows/ci.yml) and extract the `.tgz`, or build it from this checkout.
 
 ```powershell
-npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add https://github.com/darrien1998/dsh-loadout/releases/download/v0.2.1/dsh-loadout-0.2.1.tgz
+pnpm --filter dsh-loadout pack --pack-destination dist
+npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add (Resolve-Path dist/dsh-loadout-0.3.0.tgz).Path
 npx @deepseek-ai/dsh@0.2.2-rc.4 web
 ```
 
-Select **Loadout** for a new chat. This installs the public GitHub Release tarball; npm publication is not required. For a checkout build, use the local tarball below.
+In Desktop, install the tarball through **Plugins** in the Desktop profile. In either interface, open **Plugins → dsh-loadout** and use its enable switch. Installing with the CLI enables the bundle. The switch applies to the entire active profile and affects subsequent model requests, including in existing chats on that profile. Restart DSH after changing the switch if profile hot reload is disabled.
 
-DSH now registers presets through `@deepseek-ai/dsh-agent-preset` declarations in the bundle patch. It no longer discovers directories under `<dshHome>/.agent-presets`. This release replaces the old boot-time materializer with a `preset-loadout` declaration whose `config.id` remains `loadout`.
+| Switch | Effect |
+| --- | --- |
+| On | Uses Loadout's persona prefix and suffix and adds its six skills. Keep using your chosen mode. |
+| Off | Restores the selected mode's own persona and removes the Loadout skill provider. The package stays installed. |
 
-## Upgrade from 0.1.0
+The overlay applies to **Standard**, **PTC**, **Cordis**, and custom modes with ordinary persona sections. It preserves mode selection, tool definitions, workflow configuration, Plan Mode, and runtime context. DSH protects complete system prompts from overlays, including the one used by **Minimal**. The bundled skills use DSH's normal discovery and precedence rules and can be invoked in modes that provide the skill tool.
 
-Back up any custom edits in `<dshHome>/.agent-presets/loadout` before upgrading. Those legacy files remain on disk and are not imported, overwritten, or deleted by this package. Reapply desired edits through DSH's preset editor or the profile patch on `preset-loadout.config.plugins`. Old generation markers no longer control upgrades.
+### Upgrade from the Loadout mode in 0.2.1
 
-Update/install the bundle in each profile where you want Loadout, restart the host if required, then create a new chat with Loadout selected. Profiles own declarations independently; installation on `web` does not register it in other profiles. Existing Agents retain the composition revision they started with. Saved profile overrides can also keep old instructions active; review those overrides when upgrading.
+Install the 0.3.0 tarball in the profile where you use Loadout, then start a chat in a native mode such as Standard. Existing sessions store their original mode ID. To resume a session saved under the retired `loadout` mode, restore 0.2.1 in that profile first. The update leaves saved chats, profile overrides, and legacy `.agent-presets/loadout` files on disk.
 
-## What ships
+## Prompts and skills
 
-The composition copies the exact 0.2.2-rc.4 Standard declaration, retaining its scheduling, time context, office tools, plugin management, current subagent settings, and PTC workflow. Only the persona and skill roots differ. Loadout preserves Standard's documentation skill root and appends its own packaged skills using package resolution from the profile. `tests/preset/capability-parity.spec.ts` checks all rows, configuration, nesting, platform gates, and ordering against the exact published Standard YAML.
+The always-active persona routes to skills, defines when to act or ask, requires fresh verification, and has the agent write a self-contained final answer. For optimization, it asks the agent to measure against a baseline and protect the primary metric within agreed trade-offs. For code changes, it favors readable code and preserves existing behavior and valid inputs.
 
-The persona prefix routes to skills and uses the supported `{{model}}` variable. The old `{{cwd}}` variable is removed; DSH supplies working-directory information through its own runtime context. Its suffix contains the task rules and an always-active adaptation of Stop Slop's eight core writing rules: cut filler, avoid formulaic structures, prefer active voice, name specifics, address the reader, vary rhythm, trust readers, and remove manufactured slogans. These apply to authored prose across languages, while preserving technical accuracy, code, quotations, and the user's requested style. They do not require loading the skill first.
+| Skill | Method |
+| --- | --- |
+| `grill-me` | Inspect facts and resolve one user-owned requirement at a time |
+| `brainstorming` | Compare material trade-offs and proceed with authorized implementation |
+| `systematic-debugging` | Reproduce, compare working and failing paths, test one hypothesis, fix the cause |
+| `test-driven-development` | Red, verify red, green, verify green, refactor |
+| `verification-before-completion` | Match fresh evidence to each acceptance condition |
+| `stop-slop` | Review prose against eight writing rules and five internal scoring dimensions |
 
-| Skill | Use |
-|---|---|
-| `brainstorming` | Design choices that materially affect the result |
-| `grill-me` | Unclear development requirements |
-| `systematic-debugging` | Bugs and failing tests |
-| `test-driven-development` | Changes where a regression test adds evidence |
-| `verification-before-completion` | Before claiming completion |
-| `stop-slop` | Drafting, editing, and reviewing prose |
+The persona stays under 2,600 characters and each on-demand skill body stays under 3,000. The task, delivery, and coding guidance adapts the [OpenAI GPT-6.2 prompting guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.2-astra). The Stop Slop writing rules and skill adapt [Hardik Pandya's Stop Slop](https://github.com/hardikpandya/stop-slop) at revision `8da1f030185bdfe8471220585162991eaeb970e9`. Attribution and the MIT notice ship in `THIRD_PARTY_NOTICES.md`.
 
-The adapted Stop Slop skill adds a review procedure and the original five scoring dimensions. It keeps scores internal unless requested. Source: [Hardik Pandya's stop-slop](https://github.com/hardikpandya/stop-slop), pinned at `8da1f030185bdfe8471220585162991eaeb970e9`; attribution and the MIT license are in [THIRD_PARTY_NOTICES.md](https://github.com/darrien1998/dsh-loadout/blob/main/packages/dsh-loadout/THIRD_PARTY_NOTICES.md) in this repository and at the package root in the tarball.
+## Development
 
-The combined persona stays under 2,600 characters; each skill body stays under 3,000. Project skill precedence and filesystem watching remain controlled by DSH.
-
-## Development and local install
-
-Requires Node >=24.9 and pnpm. Published DSH runtime dependencies are pinned to 0.2.2-rc.4; no sibling source checkout or full Harness build is needed.
+Requires Node ≥24.9 and pnpm. The workspace pins the DSH CLI to 0.2.2-rc.4.
 
 ```powershell
 pnpm install --frozen-lockfile
@@ -50,16 +50,14 @@ pnpm run typecheck
 pnpm run lint
 pnpm test
 pnpm run test:dsh-smoke
-pnpm --filter dsh-loadout pack --pack-destination dist
-npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web add (Resolve-Path dist/dsh-loadout-0.2.1.tgz).Path
 ```
 
-The smoke test packs and installs the actual tarball into a temporary DSH home, boots the real web profile without opening a browser or making model requests, verifies preset activation, skill isolation and Stop Slop loading, then removes the bundle and checks the declaration disappears. It uses the pinned installed CLI by default; `DSH_SOURCE_DIR` may select an equivalent built source checkout. `LOADOUT_DSH` may select the installed Desktop CLI carrier for the rc.3 smoke.
+The smoke test installs the packed tarball into a temporary DSH profile, exercises the same bundle switch that the Plugins page uses, and verifies mode, tool, prompt and skill behavior through on, off, on, and removal. It runs without model requests. Set `LOADOUT_DSH` to the Desktop CLI carrier to repeat the test on rc.3, or `DSH_SOURCE_DIR` to use a built DSH checkout.
 
 ## Remove
+
+Remove the bundle through **Plugins** or run the following for the web profile.
 
 ```powershell
 npx @deepseek-ai/dsh@0.2.2-rc.4 plugin --profile web remove dsh-loadout
 ```
-
-Removing the bundle removes its declaration after reload. Legacy `.agent-presets/loadout` files and profile overrides remain user-owned and are not deleted.

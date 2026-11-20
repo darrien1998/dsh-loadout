@@ -1,44 +1,26 @@
 ---
 name: systematic-debugging
-description: Use for any bug, failing test, build failure, or unexpected behavior, before proposing a fix. Root cause first, one hypothesis at a time, a failing test before the fix. Use especially under time pressure, when a quick fix looks obvious, or when a previous fix did not work.
+description: Use for bugs, failing tests or builds, and unexpected behavior. Reproduce the failure, test one hypothesis at a time, fix the root cause, and verify the original symptom.
 ---
 
 # Systematic Debugging
 
-No fix without a root cause. A symptom fix is a failure.
-
 ## Phase 1 - Root cause
 
-1. Read the whole error: message, stack, line numbers, exit code. It often names the answer.
-2. Reproduce reliably. Not reproducible: gather more data, do not guess.
-3. Check what changed: diff, recent commits, dependencies, config, environment.
-4. Trace backward from where the bad value is observed to where it is first produced, and fix at the source. Where a defect becomes visible is downstream of where it is created.
-5. Multi-component systems: log what enters and leaves each boundary, run once, and let the evidence name the failing component before you touch anything.
+Read the full error, stack, lines, and exit code. Reproduce the symptom or gather missing evidence. Check recent changes to code, dependencies, config, and environment. Trace the bad value back to its source. When several components are involved, log inputs and outputs at each boundary and use one run to locate the fault.
 
 ## Phase 2 - Pattern
 
-Find working code in this repository that does the same thing. List every difference from the broken path, however small. Read reference implementations completely; do not skim.
+Read the complete working reference path in the repository and compare it with the failing path. Record the differences before choosing a cause.
 
 ## Phase 3 - Hypothesis
 
-State one hypothesis - "X is the cause because Y" - and what would falsify it. Test it with the smallest possible change, one variable at a time. Wrong: form a new hypothesis; do not stack fixes. Unsure: say so and investigate more.
+State one hypothesis, its evidence, and what would falsify it. Run the smallest discriminating experiment, changing one variable. Use the result to confirm the cause or form a new hypothesis.
 
 ## Phase 4 - Fix
 
-1. Capture the defect with a failing regression test when useful (load the test-driven-development skill). Otherwise record a reproducible check of the original symptom.
-2. One fix, at the root cause. No "while I'm here" edits.
-3. Verify with the verification-before-completion skill: the regression check passes, relevant behavior still works, and the original symptom is gone.
-4. Fix failed: back to Phase 1 with the new information. Three fixes failed: stop and question the design with the user; each fix surfacing a new problem elsewhere means the structure is wrong, not the hypothesis.
+1. Capture the original failure with a reproducible check. Use the test-driven-development skill when an automated regression test adds evidence.
+2. Fix the confirmed cause with one focused change. Use the verification-before-completion skill to rerun the reproducer and check affected behavior.
+3. If the fix fails, return to Phase 1 with the new evidence. After three failed fixes, or when fixes keep moving the symptom, reassess the design and pursue a different testable approach. Escalate when a concrete blocker or user-owned decision remains.
 
-## Red flags - stop, return to Phase 1
-
-| Thought | Reality |
-|---|---|
-| "Quick fix now, investigate later" | The first fix sets the pattern. |
-| "Just try changing X" | A guess that works is a bug you have not found yet. |
-| "Change several things, run tests" | You cannot tell which one worked. |
-| "It's probably X" | Probably is a hypothesis; test it. |
-| "One more attempt" (after 2+) | Three failures is a design problem. |
-| "The issue is simple, skip the process" | Simple bugs have root causes too, and the process is fast for them. |
-
-No root cause after a full investigation: document what was checked, add handling (retry, timeout, clear error) and logging. Most "no root cause" cases are incomplete investigation.
+If the cause remains unknown after investigation, record the checks and limits. Add scoped diagnostics or handling such as a retry, timeout, or clear error when the evidence justifies it.

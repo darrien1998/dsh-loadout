@@ -1,38 +1,20 @@
 ---
 name: verification-before-completion
-description: Use before claiming anything is done, fixed, passing, or ready - before committing, opening a PR, or moving to the next task. Run the command that proves the claim, read its full output, then claim exactly what the output shows.
+description: Use before claiming a result, committing, opening a PR, or handing off. Run fresh checks that cover the claim and report what the evidence supports.
 ---
 
 # Verification Before Completion
 
-No completion claim without fresh evidence from this turn.
+1. Identify a check that would fail if the claim were wrong. Match its coverage to the claim.
+2. Run the complete relevant check on the current state. Read the full result, including exit code, failures, and warnings.
+3. Compare the evidence with each acceptance condition. Address recoverable failures and rerun affected checks. Report remaining gaps and which paths you exercised.
 
-## Gate
-
-Before any status claim or expression of satisfaction:
-
-1. IDENTIFY the command that proves the claim.
-2. RUN it, fresh and complete. Not the earlier run; not a subset.
-3. READ the full output: exit code, failure count, warnings.
-4. COMPARE: does the output support the claim? No: report the actual state with the evidence. Yes: make the claim with the evidence.
-
-Skipping a step is asserting, not verifying.
-
-## What each claim needs
-
-| Claim | Requires | Not enough |
-|---|---|---|
-| Tests pass | test output: 0 failures | an earlier run, "should pass" |
-| Lint clean | linter: 0 errors | a partial check |
-| Build passes | build: exit 0 | lint passing, logs that "look fine" |
-| Bug fixed | the original symptom re-tested | code changed, assumed fixed |
-| Regression test works | seen red before the fix, green after | passes once |
-| Requirements met | each requirement checked against the diff | tests passing |
-
-## Words that mean you have not verified
-
-"should work", "probably", "seems to", "Great!", "Done!" before running anything. Confidence is not evidence. Tiredness is not an exemption. A partial check proves nothing about the rest.
-
-## Say what you observed
-
-"The suite passes" and "the change is correct" are different sentences; the first has a receipt. Name the paths your checks exercised: a path you did not exercise is unverified whatever the suite says. Ask what the evidence would look like if you were wrong; if it would look the same, it is not evidence yet.
+| Claim | Evidence |
+| --- | --- |
+| Tests pass | Current run with zero failures for the claimed suite |
+| Lint passes | Current linter run with zero errors at the claimed scope |
+| Build passes | Relevant build exits successfully |
+| Bug fixed | Original symptom reproduced before the fix and retested after it |
+| Regression test works | Focused test failed for the defect and passed after the fix |
+| Performance improved | Baseline and result measured under equivalent conditions |
+| Requirements met | Each requested deliverable checked against the change and its normal entry point |

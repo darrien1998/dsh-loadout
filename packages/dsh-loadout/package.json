@@ -1,7 +1,7 @@
 {
   "name": "dsh-loadout",
-  "version": "0.2.1",
-  "description": "DeepSeek Harness 0.2.2-rc.4 Standard preset with task-first instructions, Stop Slop writing rules, and six bundled skills",
+  "version": "0.3.0",
+  "description": "Toggle task-first prompts and six engineering skills in DeepSeek Harness.",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -13,15 +13,17 @@
   "keywords": [
     "deepseek-harness",
     "dsh",
-    "agent-preset",
+    "system-prompt",
     "skills"
   ],
   "exports": {
     "./cordis.patch.yml": "./cordis.patch.yml",
+    "./prompt-overlay": "./prompt-overlay.mjs",
     "./package.json": "./package.json"
   },
   "files": [
     "cordis.patch.yml",
+    "prompt-overlay.mjs",
     "preset",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
@@ -32,12 +34,7 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "peerDependencies": {
-    "@deepseek-ai/dsh-agent-preset": "0.2.2-rc.3 || 0.2.2-rc.4"
-  },
-  "peerDependenciesMeta": {
-    "@deepseek-ai/dsh-agent-preset": {
-      "optional": true
-    }
+  "engines": {
+    "dsh": "0.2.2-rc.3 || 0.2.2-rc.4"
   }
 }

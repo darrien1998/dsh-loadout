@@ -14,21 +14,19 @@ Adapted from Hardik Pandya's Stop Slop. See the package's THIRD_PARTY_NOTICES.md
 
 ## Core rules
 
-1. Cut filler, throat-clearing, emphasis crutches, and unnecessary adverbs.
-2. State the point directly. Remove formulaic contrasts, negative listings, dramatic fragments, rhetorical setups, and false agency.
-3. Prefer active voice with a concrete actor. Do not assign human intentions to objects.
-4. Name specific people, actions, evidence, and consequences. Remove vague claims and unsupported absolutes.
-5. Address the reader directly when useful; use concrete situations instead of distant narration.
+1. Cut filler, stock openings, emphasis crutches, and excess adverbs.
+2. State the point directly. Remove formulaic contrasts, negative lists, dramatic fragments, rhetorical setups, and false agency.
+3. Prefer active voice with a real actor.
+4. Name people, actions, evidence, and consequences. Qualify claims to match the evidence.
+5. Address the reader directly when useful and ground explanations in concrete situations.
 6. Vary sentence lengths and paragraph endings. Avoid forced triplets and em dashes.
-7. Trust the reader. Remove redundant softening, justification, and hand-holding.
-8. Rewrite slogans and manufactured pull-quotes as concrete statements.
+7. Trust the reader. Cut redundant reassurance, justification, and hand-holding.
+8. Turn slogans and manufactured pull-quotes into concrete statements.
 
-Apply these rules across languages to authored prose. Preserve facts, uncertainty, citations, technical terminology, code, identifiers, literal quotations, and the user's requested style. Do not invent an actor or weaken an accurate statement to satisfy a style rule.
+Apply the rules to authored prose across languages. Preserve facts, uncertainty, citations, technical terminology, code, identifiers, literal quotations, and requested style.
 
 ## Review
 
-For a draft, identify the patterns, revise, then check that meaning and evidence survived. For a writing request, draft with the rules, then review before delivering.
+Draft or review for the intended reader and supply the context they need. Preserve the author's wording outside requested edits. Identify weak patterns, revise, and check that meaning and evidence survived. Remove commentary about the writing itself unless requested.
 
-Check for empty openers, artificial contrasts, vague implications, repeated sentence rhythms, punchy paragraph endings, and meta-commentary about the writing itself.
-
-Internally score directness, rhythm, reader trust, authenticity, and density from 1 to 10 each. Below 35/50, revise and review again. Scores are an editing aid, not evidence of factual accuracy or human authorship. Show scores and a before/after comparison only if requested; otherwise deliver the finished prose.
+Score directness, rhythm, reader trust, authenticity, and density internally from 1 to 10 each. Below 35/50, revise and review again. The score guides editing. Show scores and before/after examples only on request.

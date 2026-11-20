@@ -1,18 +1,22 @@
 // The persona is environment plus task-level instruction: no identity claim,
 // no competence adjectives, every bundled skill named, within budget.
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { entryListSchema } from '@deepseek-ai/cordis-plugin-include'
+import { load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
-import { loadComposition } from './parity.ts'
 import { BANNED_TOKENS, BUNDLED_SKILLS, PERSONA_MAX_CHARACTERS, ROLE_PLAY_TOKENS } from '../contract.ts'
 
-const here = dirname(fileURLToPath(import.meta.url))
-const loadoutPath = resolve(here, '../../packages/dsh-loadout/cordis.patch.yml')
+const loadoutPath = resolve('packages/dsh-loadout/cordis.patch.yml')
 
 interface Persona { readonly prefix: string; readonly suffix: string }
+interface OverlayPatch {
+  readonly insert: { readonly config: { readonly id: string; readonly config: unknown }[] }[]
+}
 
 async function persona(): Promise<Persona> {
-  const row = (await loadComposition(loadoutPath)).find(candidate => candidate.id === 'persona')
+  const patch = load(await readFile(loadoutPath, 'utf8'), { schema: entryListSchema }) as OverlayPatch[]
+  const row = patch[0]?.insert[0]?.config.find(candidate => candidate.id === 'loadout-prompt')
   const config = row?.config as { prefix?: unknown; suffix?: unknown } | undefined
   expect(typeof config?.prefix).toBe('string')
   expect(typeof config?.suffix).toBe('string')
@@ -39,12 +43,9 @@ describe('Loadout persona', () => {
     const { prefix, suffix } = await persona()
     for (const name of BUNDLED_SKILLS) expect(prefix, name).toContain(name)
     expect(prefix).toContain('`skill` tool')
-    expect(suffix.split('\n')[0]).toBe('Standing rules:')
+    const sections = suffix.split('\n\n').map(section => section.split('\n')[0])
+    expect(sections).toEqual(['Task execution:', 'Code changes:', 'Delivery:', 'Writing rules (Stop Slop):'])
     expect(suffix).toContain('todo_write')
-    expect(suffix.split('Writing rules')[0]!.split('\n').filter(line => line.startsWith('- ')).length).toBe(6)
-    for (const rule of ['assessment requests', 'finish authorized work', 'user-owned decisions', 'progress updates', 'smallest coherent patch', 'fresh, relevant evidence', 'Do not end on a promise']) {
-      expect(suffix, rule).toContain(rule)
-    }
   })
 
   it('keeps the Stop Slop core rules active without loading a skill', async () => {

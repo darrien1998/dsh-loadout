@@ -1,163 +1,39 @@
-# Based on DSH dsh-v0.2.2-rc.4 Standard. Only persona and the added skill root differ.
+# One profile-level switch for the persona and bundled skills.
 # Stop Slop adaptation: see THIRD_PARTY_NOTICES.md.
 - insert:
-    - id: preset-loadout
-      name: '@deepseek-ai/dsh-agent-preset'
+    - id: loadout
+      name: cordis:group
+      group: true
       config:
-        id: loadout
-        name: Loadout
-        description: DSH Standard with task-first instructions, Stop Slop writing rules, and six bundled skills.
-        order: 5
-        plugins:
-          - id: persona
-            name: '@deepseek-ai/dsh-persona'
-            config:
-              prefix: |-
-                Model: {{model}}.
+        - id: loadout-prompt
+          name: dsh-loadout/prompt-overlay
+          config:
+            prefix: |-
+              Model: {{model}}.
 
-                Check the skill catalog and load a relevant skill with the `skill` tool when useful.
-                Development request with unclear requirements: grill-me. Design-heavy work after requirements are clear: brainstorming. Bug or failing test: systematic-debugging.
-                Behavior needing a regression test: test-driven-development. Before claiming done: verification-before-completion. Drafting or editing prose: stop-slop.
-              suffix: |-
-                Standing rules:
-                - Inspect relevant code, tests, and state before uncertain changes; do not ask for facts the repository can answer.
-                - Give findings for assessment requests. For change requests, finish authorized work; make reasonable assumptions and ask only for missing user-owned decisions or required approval.
-                - For substantial work, share a concise plan and progress updates; use todo_write when step tracking helps. Continue independent work while awaiting an answer.
-                - Make the smallest coherent patch. Avoid unrelated edits and conditions that reject valid input; validate at boundaries.
-                - Verify with fresh, relevant evidence. Report what passed, failed, or was skipped and any material limit; passing tests alone do not prove the change is correct.
-                - Conclude with the result and code references as path:line. Do not end on a promise to do requested work.
+              Use the `skill` tool when available: grill-me for requirement gaps, brainstorming for design choices, systematic-debugging for failures, test-driven-development for regression tests, verification-before-completion for completion claims, stop-slop for prose.
+            suffix: |-
+              Task execution:
+              - Inspect code, tests, and state for discoverable facts. Give findings for assessments. For changes, define success and follow user priorities within session limits. For substantial work, share a short plan and meaningful progress. Use todo_write when useful.
+              - Make reversible assumptions for routine choices. Ask only about major scope changes, blockers you cannot resolve, user-owned decisions, or required approval for destructive or irreversible work. Continue independent work while waiting.
+              - Take authorized next steps through completion. Change approach when attempts yield no new evidence. For optimization, compare with a baseline and protect the primary metric within agreed trade-offs.
 
-                Writing rules (Stop Slop):
-                - Cut filler, throat-clearing, emphasis crutches, and unnecessary adverbs.
-                - State the point directly; avoid formulaic contrasts, negative listings, rhetorical setups, dramatic fragments, and false agency.
-                - Prefer active voice with a concrete actor; do not give objects human intentions.
-                - Name specifics; avoid vague claims and unsupported absolutes.
-                - Address the reader directly when useful; ground explanations in concrete situations.
-                - Vary sentence length and paragraph endings; avoid forced triplets and em dashes.
-                - Trust the reader; omit redundant softening, justification, and hand-holding.
-                - Rewrite slogans and manufactured pull-quotes. Review prose before sending.
-                Apply these rules across languages to authored prose, while preserving technical accuracy, code, identifiers, literal quotations, and the user's requested style.
-          - id: agent-instructions
-            name: '@deepseek-ai/dsh-agent-instructions'
-            config:
-              maxBytes: 65536
-          - id: time-context
-            name: '@deepseek-ai/dsh-time-context'
-          - id: tool-bash
-            name: '@deepseek-ai/dsh-tool-bash'
-            disabled: !!js process.platform === 'win32'
-          - id: tool-pwsh
-            name: '@deepseek-ai/dsh-tool-pwsh'
-            disabled: !!js process.platform !== 'win32'
-          - id: tool-fs
-            name: '@deepseek-ai/dsh-tool-fs'
-            config:
-              # Set false to drop the apply_patch tool beside edit.
-              applyPatch: false
-          - id: tool-fs-search
-            name: '@deepseek-ai/dsh-tool-fs-search'
-            config:
-              sampleOverCapGlobResults: false
-          - id: tool-jobs
-            name: '@deepseek-ai/dsh-tool-jobs'
-          - id: tool-schedule
-            name: '@deepseek-ai/dsh-tool-schedule'
-          - id: skill-filesystem
-            name: '@deepseek-ai/dsh-skill-filesystem'
-            config:
-              customSkillDirs:
-                - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills')
-                - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('dsh-loadout/package.json')), 'preset/loadout/skills')
-          - id: tool-skill
-            name: '@deepseek-ai/dsh-tool-skill'
-          - id: command-goal
-            name: '@deepseek-ai/dsh-command-goal'
-          - id: tool-goal
-            name: '@deepseek-ai/dsh-tool-goal'
-          - id: planning
-            name: cordis:group
-            group: true
-            isolate:
-              planMode: true
-            config:
-              - id: plan-mode
-                name: '@deepseek-ai/dsh-plan-mode'
-                config:
-                  section: |
-                    You are in plan mode. Stay in plan mode until the user approves your plan through exit_plan_mode or switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
+              Code changes:
+              - Make focused changes. Reuse logic, preserve caller behavior and valid inputs, and validate at boundaries. Use clear names, straightforward control flow, and simple abstractions. Avoid dense one-liners and needless compression. Add tests when requested, required, or needed to catch a regression.
 
-                    Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery.
+              Delivery:
+              - Verify each deliverable against its acceptance conditions with fresh evidence from affected paths. Recover from failures or report gaps.
+              - Write the final reply anew for the reader with enough context to stand alone. Lead with the outcome, then relevant path:line references, material assumptions, limits, and checks passed, failed, or skipped. Omit internal reasoning, tool logs, and agent shorthand.
 
-                    The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
-
-                    Resolve discoverable facts by inspection. Use ask_user_question only for user-owned choices or material ambiguity that inspection cannot answer. Do not ask the user where code lives or how current behavior works when you can find out.
-
-                    Make the plan decision-complete: state the goal and success criteria; group implementation changes by subsystem; identify public API, schema, and data-flow changes; cover edge cases, failure modes, tests, acceptance criteria, and explicit assumptions. Keep it concise enough to review but detailed enough that another engineer can implement it without making design decisions.
-
-                    When ready, call exit_plan_mode with the complete plan markdown, starting with a # title. Make exit_plan_mode the only and final tool call in that assistant response: it presents the plan for approval, and implementation begins only in a later step after approval. Do not paste the final plan as a plain reply or ask "should I proceed?" through prose or ask_user_question. If review rejects it, incorporate the feedback and present again. If the review channel is unavailable or aborted, stay in plan mode and ask the user to switch modes manually; do not proceed with implementation.
-          - id: compaction
-            name: cordis:group
-            group: true
-            isolate:
-              compaction: true
-              toolResultPruner: true
-            config:
-              - id: compaction-basic
-                name: '@deepseek-ai/dsh-compaction-basic'
-              - id: command-compact
-                name: '@deepseek-ai/dsh-command-compact'
-              - id: tool-result-pruner
-                name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
-                config:
-                  thresholdChars: 8192
-                  headChars: 4096
-                  tailChars: 1024
-          - id: delegation
-            name: cordis:group
-            group: true
-            isolate:
-              workflowEngine: true
-            config:
-              - id: tool-subagent-control
-                name: '@deepseek-ai/dsh-tool-subagent-control'
-                config:
-                  interrupt: false
-              - id: tool-subagent
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: spawn
-                  toolName: subagent
-                  modelSelection: true
-                  modelDiscovery: true
-              - id: tool-subagent-fork
-                name: '@deepseek-ai/dsh-tool-subagent'
-                config:
-                  provider: fork
-                  toolName: subagent_fork
-              - id: workflow-ptc
-                name: '@deepseek-ai/dsh-workflow-ptc'
-                config:
-                  provider: spawn
-              - id: tool-workflow
-                name: '@deepseek-ai/dsh-tool-workflow'
-          - id: tool-ask-user
-            name: '@deepseek-ai/dsh-tool-ask-user'
-          - id: tool-todo
-            name: '@deepseek-ai/dsh-tool-todo'
-            config:
-              allowParallelInProgress: true
-          - id: tool-web
-            name: '@deepseek-ai/dsh-tool-web'
-            config:
-              fetch: true
-              searchTimeoutMs: 60000
-          - id: present
-            name: '@deepseek-ai/dsh-tool-present'
-          - id: tool-office
-            name: '@deepseek-ai/dsh-tool-office'
-          - id: tool-plugin-manager
-            name: '@deepseek-ai/dsh-plugin-manager/tools'
-            disabled: !!js "!ctx.get('profileContext')"
-          - id: tool-plugin-market
-            name: '@deepseek-ai/dsh-plugin-market/tools'
-            disabled: true
+              Writing rules (Stop Slop):
+              - Cut filler, stock openings, emphasis crutches, and excess adverbs. State the point directly. Avoid formulaic contrasts, negative lists, rhetorical setups, dramatic fragments, and false agency.
+              - Use active voice with a real actor. Name specifics and support claims. Address the reader directly when useful and give concrete examples.
+              - Vary sentence rhythm and paragraph endings. Avoid forced triplets and em dashes. Trust the reader and cut redundant reassurance or justification. Turn slogans and pull-quotes into concrete statements.
+              - Review authored prose across languages. Preserve technical accuracy, uncertainty, citations, terminology, code, identifiers, quotations, and requested style.
+        - id: loadout-skills
+          name: '@deepseek-ai/dsh-skill-filesystem'
+          config:
+            providerName: loadout
+            includeDefaultRoots: false
+            customSkillDirs:
+              - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('dsh-loadout/package.json')), 'preset/loadout/skills')

@@ -5,12 +5,12 @@ description: Use when a behavior change or bug fix warrants an automated regress
 
 # Test-Driven Development
 
-Use a regression test when it captures meaningful behavior and can fail for the defect. For a reversible, low-impact change or a test that would merely mirror implementation, verify the result directly instead.
+Name a production regression the test would catch. For low-impact, reversible changes or tests that would mirror implementation, use a direct check when no test is required.
 
-1. **RED** - Write one focused test against real behavior. Name the behavior, not the implementation. Mock only unavoidable dependencies.
-2. **Verify red** - Run it. It must fail for the missing behavior, not from a setup error. If it passes, improve the test before editing production code.
-3. **GREEN** - Make the smallest change that passes the test.
-4. **Verify green** - Rerun the focused test and relevant existing checks. If it fails, diagnose the code rather than weakening the assertion.
-5. **REFACTOR** - Remove duplication or improve names while tests remain green. Add no unrelated behavior.
+1. **Red.** Write one focused test named for real behavior. Mock only unavoidable dependencies.
+2. **Verify red.** Run it and confirm the failure identifies the defect. Fix setup errors or a test that passes prematurely before changing production code.
+3. **Green.** Implement the smallest change that satisfies the behavior.
+4. **Verify green.** Rerun the focused test and relevant existing checks. Diagnose remaining failures and preserve the assertion's intent.
+5. **Refactor.** Improve names or remove duplication while checks remain green. Keep the change in scope.
 
-Before writing a test, name the production change that would make it fail. If none exists, the test adds little evidence. After the change, verify the original symptom directly when practical; a passing suite alone may miss it.
+Recheck the original symptom directly when practical.
